@@ -88,6 +88,7 @@ export async function GET(
       locationId: location.id,
       location: { id: location.id, code: location.code, name: location.name },
       incomeTotal: data.incomeTotal,
+      cosTotal: data.cosTotal,
       cosByCategory: data.cosByCategory,
     });
   } catch (err: unknown) {

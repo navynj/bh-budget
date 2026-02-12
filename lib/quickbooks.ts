@@ -288,6 +288,7 @@ export async function withValidTokenForLocation<T>(
 /** Parsed P&L: total income and Cost of Goods Sold line items (category name + amount). */
 export type ProfitAndLossParsed = {
   incomeTotal?: number;
+  cosTotal?: number;
   cosByCategory?: { categoryId: string; name: string; amount: number }[];
 };
 
@@ -434,12 +435,18 @@ export function parseIncomeFromReportRows(
 ): number {
   const incomeSection = findSection(rows, (t) => /^income$/i.test(t.trim()));
   if (!incomeSection) return 0;
-  let total = rowTotal(incomeSection);
-  if (total <= 0) {
-    const items = sectionLineItems(incomeSection);
-    total = items.reduce((s, i) => s + i.amount, 0);
-  }
-  return total;
+  return rowTotal(incomeSection);
+}
+
+/** Parse Cost of Sales total from P&L report Rows (section Summary total). */
+export function parseCosTotalFromReportRows(
+  rows: { Row?: unknown[] } | undefined,
+): number {
+  const cosSection = findSection(rows, (t) =>
+    /cost of (goods )?sold|cost of sales|cogs/i.test(t.trim()),
+  );
+  if (!cosSection) return 0;
+  return rowTotal(cosSection);
 }
 
 /** Parse Cost of Goods Sold categories from P&L report Rows. */
@@ -509,10 +516,12 @@ export async function fetchProfitAndLossReport(
     case 'income,cos':
       return {
         incomeTotal: parseIncomeFromReportRows(rows),
+        cosTotal: parseCosTotalFromReportRows(rows),
         cosByCategory: parseCosFromReportRows(rows),
       };
     case 'cos':
       return {
+        cosTotal: parseCosTotalFromReportRows(rows),
         cosByCategory: parseCosFromReportRows(rows),
       };
   }

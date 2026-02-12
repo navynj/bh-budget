@@ -8,7 +8,7 @@ import {
 } from '@/lib/quickbooks';
 import type { Prisma } from '@prisma/client';
 import type { BudgetDataType } from '@/types/budget';
-import { formatYearMonth, isValidYearMonth } from './utils';
+import { formatYearMonth, parseYearMonth, isValidYearMonth } from './utils';
 
 const DEFAULT_BUDGET_RATE = 0.33;
 const DEFAULT_REFERENCE_PERIOD_MONTHS = 6;
@@ -16,6 +16,7 @@ const DEFAULT_REFERENCE_PERIOD_MONTHS = 6;
 /** Reference income total and COS per category for budget calculation. */
 export type ReferenceData = {
   incomeTotal?: number;
+  cosTotal?: number;
   cosByCategory?: { categoryId: string; name: string; amount: number }[];
 };
 
@@ -33,7 +34,7 @@ function referenceDateRange(
   const month0 = (m ?? 1) - 1;
   const end = new Date(y, month0, 1);
   const start = new Date(end);
-  start.setMonth(start.getMonth() - months);
+  start.setMonth(start.getMonth() - (months - 1));
   const lastDay = new Date(y, month0 + 1, 0).getDate();
   const pad = (n: number) => String(n).padStart(2, '0');
   return {
@@ -103,6 +104,7 @@ export async function getCurrentMonthCos(
   locationId: string,
   date: { year: number; month: number },
 ): Promise<{
+  cosTotal?: number;
   cosByCategory?: { categoryId: string; name: string; amount: number }[];
 }> {
   const dateString = formatYearMonth(date.year, date.month);
@@ -120,7 +122,14 @@ export async function getCurrentMonthCos(
         accessToken,
       ),
   );
-  return { cosByCategory: report.cosByCategory };
+  const cosByCategory = report.cosByCategory ?? [];
+  // Use the P&L section total (single source of truth). Summing cosByCategory would double-count
+  // because it includes both parent category rows and subcategory rows.
+  const cosTotal =
+    report.cosTotal != null && Number.isFinite(report.cosTotal)
+      ? report.cosTotal
+      : cosByCategory.reduce((s, c) => s + c.amount, 0);
+  return { cosTotal, cosByCategory };
 }
 
 /** Get or create the single BudgetSettings row (default rate 33%, reference 6 months). */
@@ -138,8 +147,14 @@ export async function getOrCreateBudgetSettings() {
 }
 
 /** Compute total budget from reference income and rate. */
-export function computeTotalBudget(incomeTotal: number, rate: number): number {
-  return Math.round(incomeTotal * rate * 100) / 100;
+export function computeTotalBudget(
+  incomeTotal: number,
+  rate: number,
+  referenceMonths: number,
+): number {
+  if (referenceMonths <= 0) return 0;
+  const averageMonthlyIncome = incomeTotal / referenceMonths;
+  return Math.round(averageMonthlyIncome * rate * 100) / 100;
 }
 
 /** Distribute total budget to categories by COS percentage. */
@@ -173,8 +188,8 @@ export type CreateBudgetInput = {
   referenceData?: ReferenceData;
 };
 
-type BudgetWithCategoriesRaw = Prisma.BudgetGetPayload<{
-  include: { categories: true };
+type BudgetWithLocationRaw = Prisma.BudgetGetPayload<{
+  include: { location: true };
 }>;
 
 /** Create or update a budget row with error set (e.g. QB_REFRESH_EXPIRED). Used when full creation fails so the card still appears in list. */
@@ -182,15 +197,12 @@ async function upsertBudgetStubWithError(
   locationId: string,
   yearMonth: string,
   errorCode: string,
-): Promise<BudgetWithCategoriesRaw> {
+): Promise<BudgetWithLocationRaw> {
   const existing = await prisma.budget.findUnique({
     where: { locationId_yearMonth: { locationId, yearMonth } },
-    include: { categories: true },
+    include: { location: true },
   });
   if (existing) {
-    await prisma.budgetCategory.deleteMany({
-      where: { budgetId: existing.id },
-    });
     await prisma.budget.update({
       where: { id: existing.id },
       data: {
@@ -202,7 +214,7 @@ async function upsertBudgetStubWithError(
     });
     return prisma.budget.findUniqueOrThrow({
       where: { id: existing.id },
-      include: { location: true, categories: true },
+      include: { location: true },
     });
   }
   return prisma.budget.create({
@@ -214,18 +226,19 @@ async function upsertBudgetStubWithError(
       referencePeriodMonthsUsed: null,
       error: errorCode,
     },
-    include: { location: true, categories: true },
+    include: { location: true },
   });
 }
 
 /**
  * Ensure budget exists for location + yearMonth. Uses settings (or overrides), fetches reference
- * income/COS if not provided, then creates/updates Budget and BudgetCategory records.
+ * income if not provided, then creates/updates Budget record. Category list/amounts are derived
+ * from QuickBooks COS fetch on each page load.
  * On QB_REFRESH_EXPIRED creates a stub budget with error set so the card still appears. Other errors throw.
  */
 export async function ensureBudgetForMonth(
   input: CreateBudgetInput,
-): Promise<BudgetWithCategoriesRaw> {
+): Promise<BudgetWithLocationRaw> {
   const { locationId, yearMonth, userId, referenceData: providedRef } = input;
   if (!isValidYearMonth(yearMonth)) {
     throw new AppError('Invalid yearMonth; use YYYY-MM');
@@ -234,7 +247,7 @@ export async function ensureBudgetForMonth(
   try {
     const existing = await prisma.budget.findUnique({
       where: { locationId_yearMonth: { locationId, yearMonth } },
-      include: { categories: true },
+      include: { location: true },
     });
 
     const settings = await getOrCreateBudgetSettings();
@@ -246,32 +259,9 @@ export async function ensureBudgetForMonth(
       providedRef ??
       (await getReferenceIncomeAndCos(userId, locationId, yearMonth, refMonths));
 
-    const totalAmount = computeTotalBudget(ref.incomeTotal ?? 0, rate);
-    const categories = distributeByCosPercent(
-      totalAmount,
-      ref.cosByCategory ?? [],
-    );
-
-    const budgetData: Prisma.BudgetCreateInput = {
-      location: { connect: { id: locationId } },
-      yearMonth,
-      totalAmount,
-      budgetRateUsed: rate,
-      referencePeriodMonthsUsed: refMonths,
-      categories: {
-        create: categories.map((c) => ({
-          categoryId: c.categoryId,
-          name: c.name,
-          amount: c.amount,
-          percent: c.percent,
-        })),
-      },
-    };
+    const totalAmount = computeTotalBudget(ref.incomeTotal ?? 0, rate, refMonths);
 
     if (existing) {
-      await prisma.budgetCategory.deleteMany({
-        where: { budgetId: existing.id },
-      });
       await prisma.budget.update({
         where: { id: existing.id },
         data: {
@@ -281,26 +271,21 @@ export async function ensureBudgetForMonth(
           error: null,
         },
       });
-      if (categories.length > 0) {
-        await prisma.budgetCategory.createMany({
-          data: categories.map((c) => ({
-            budgetId: existing.id,
-            categoryId: c.categoryId,
-            name: c.name,
-            amount: c.amount,
-            percent: c.percent,
-          })),
-        });
-      }
       return prisma.budget.findUniqueOrThrow({
         where: { id: existing.id },
-        include: { categories: true },
+        include: { location: true },
       });
     }
 
     return prisma.budget.create({
-      data: budgetData,
-      include: { categories: true },
+      data: {
+        location: { connect: { id: locationId } },
+        yearMonth,
+        totalAmount,
+        budgetRateUsed: rate,
+        referencePeriodMonthsUsed: refMonths,
+      },
+      include: { location: true },
     });
   } catch (e) {
     if (e instanceof AppError && e.code === 'QB_REFRESH_EXPIRED') {
@@ -314,12 +299,12 @@ export async function ensureBudgetForMonth(
   }
 }
 
-/** Raw budget row from Prisma (with location and categories). */
+/** Raw budget row from Prisma (with location). */
 type RawBudgetWithInclude =
   Awaited<
     ReturnType<
       typeof prisma.budget.findFirst<{
-        include: { location: true; categories: true };
+        include: { location: true };
       }>
     >
   > extends infer R
@@ -340,13 +325,7 @@ export function mapBudgetToDataType(raw: RawBudgetWithInclude): BudgetDataType {
     referencePeriodMonthsUsed: raw.referencePeriodMonthsUsed,
     error: raw.error ?? null,
     location: raw.location,
-    categories: raw.categories.map((c) => ({
-      id: c.id,
-      categoryId: c.categoryId,
-      name: c.name,
-      amount: Number(c.amount),
-      percent: c.percent != null ? Number(c.percent) : null,
-    })),
+    categories: [],
   };
 }
 
@@ -357,12 +336,39 @@ export async function getBudgetByLocationAndMonth(
 ): Promise<BudgetDataType | null> {
   const raw = await prisma.budget.findUnique({
     where: { locationId_yearMonth: { locationId, yearMonth } },
-    include: {
-      location: true,
-      categories: true,
-    },
+    include: { location: true },
   });
   return raw ? mapBudgetToDataType(raw) : null;
+}
+
+/** Attach actual COS for the given month to each budget. Catches per-location so one failure does not break the list. */
+export async function attachCurrentMonthCosToBudgets<
+  T extends { locationId: string },
+>(
+  budgets: T[],
+  yearMonth: string,
+): Promise<
+  (T & {
+    currentCosTotal?: number;
+    currentCosByCategory?: { categoryId: string; name: string; amount: number }[];
+  })[]
+> {
+  if (!isValidYearMonth(yearMonth)) return budgets as (T & { currentCosTotal?: number; currentCosByCategory?: { categoryId: string; name: string; amount: number }[] })[];
+  const { year, month } = parseYearMonth(yearMonth);
+  const results = await Promise.allSettled(
+    budgets.map(async (b) => getCurrentMonthCos(b.locationId, { year, month })),
+  );
+  return budgets.map((b, i) => {
+    const r = results[i];
+    if (r.status === 'fulfilled' && r.value.cosByCategory) {
+      return {
+        ...b,
+        currentCosTotal: r.value.cosTotal ?? r.value.cosByCategory.reduce((s, c) => s + c.amount, 0),
+        currentCosByCategory: r.value.cosByCategory,
+      };
+    }
+    return b;
+  });
 }
 
 /** List all budgets for a given yearMonth (for office/admin). Ordered by location.createdAt. */
@@ -371,7 +377,7 @@ export async function getBudgetsByMonth(
 ): Promise<BudgetDataType[]> {
   const raw = await prisma.budget.findMany({
     where: { yearMonth },
-    include: { location: true, categories: true },
+    include: { location: true },
     orderBy: { location: { createdAt: 'asc' } },
   });
   return raw.map(mapBudgetToDataType);

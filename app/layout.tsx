@@ -1,10 +1,8 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
-import { headers } from 'next/headers';
-import { redirect } from 'next/navigation';
-import { auth } from '@/lib/auth';
-import type { UserStatus } from '@prisma/client';
+import { Suspense } from 'react';
 import { Toaster } from '@/components/ui/sonner';
+import { NavigationProgressProvider } from '@/components/providers/NavigationProgress';
 import './globals.css';
 
 const geistSans = Geist({
@@ -32,8 +30,19 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
-        <Toaster position="top-center" />
+        <Suspense
+          fallback={
+            <>
+              {children}
+              <Toaster position="top-center" />
+            </>
+          }
+        >
+          <NavigationProgressProvider>
+            {children}
+            <Toaster position="top-center" />
+          </NavigationProgressProvider>
+        </Suspense>
       </body>
     </html>
   );

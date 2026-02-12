@@ -16,7 +16,7 @@ import { getPendingApprovals } from '@/lib/onboarding';
 import { getCurrentYearMonth } from '@/lib/utils';
 import type { BudgetDataType } from '@/types/budget';
 import { redirect } from 'next/navigation';
-import React from 'react';
+import React, { Suspense } from 'react';
 
 const layout = async ({ children }: { children: React.ReactNode }) => {
   // =================
@@ -47,7 +47,9 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
         <Header />
         <div className="space-y-6">
           <OnboardingList canApprove={canApprove} pending={pending} />
-          <MonthNav currentYearMonth={yearMonth} />
+          <Suspense fallback={null}>
+            <MonthNav currentYearMonth={yearMonth} />
+          </Suspense>
           {children}
         </div>
       </main>

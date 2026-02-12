@@ -2,6 +2,7 @@ import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
 import { BudgetSettingsForm } from '@/components/features/budget/form/BudgetSettingsForm';
 import { auth, canSetBudget } from '@/lib/auth';
 import {
+  attachCurrentMonthCosToBudgets,
   ensureBudgetForMonth,
   ensureBudgetsForMonth,
   getBudgetByLocationAndMonth,
@@ -66,9 +67,17 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   if (isOfficeOrAdmin) {
     budgetsList = await getBudgetsByMonth(yearMonth);
+    budgetsList = await attachCurrentMonthCosToBudgets(budgetsList, yearMonth);
   } else if (managerLocationId) {
     budgetData =
       (await getBudgetByLocationAndMonth(managerLocationId, yearMonth)) ?? null;
+    if (budgetData) {
+      const [withCos] = await attachCurrentMonthCosToBudgets(
+        [budgetData],
+        yearMonth,
+      );
+      budgetData = withCos;
+    }
   }
 
   const settings = await getOrCreateBudgetSettings();

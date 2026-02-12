@@ -1,6 +1,9 @@
 import BudgetCard from '@/components/features/budget/card/BudgetCard';
 import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
-import { getBudgetByLocationAndMonth } from '@/lib/budget';
+import {
+  attachCurrentMonthCosToBudgets,
+  getBudgetByLocationAndMonth,
+} from '@/lib/budget';
 import { prisma } from '@/lib/prisma';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 import { notFound, redirect } from 'next/navigation';
@@ -36,10 +39,12 @@ const LocationPage = async ({
   // ===============================
   // Budget
   // ===============================
-  const budget = await getBudgetByLocationAndMonth(id, yearMonth);
+  let budget = await getBudgetByLocationAndMonth(id, yearMonth);
   if (!budget) {
     redirect(`/budget/location/${id}?yearMonth=${yearMonth}`);
   }
+  const [withCos] = await attachCurrentMonthCosToBudgets([budget], yearMonth);
+  budget = withCos;
 
   return (
     <BudgetCardList

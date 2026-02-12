@@ -94,26 +94,10 @@ model Budget {
   createdAt                 DateTime @default(now()) @map("created_at")
   updatedAt                 DateTime @updatedAt @map("updated_at")
 
-  location   Location         @relation(fields: [locationId], references: [id], onDelete: Cascade)
-  categories BudgetCategory[]
+  location Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
 
   @@unique([locationId, yearMonth])
   @@map("budgets")
-}
-
-// ---------- Budget category: COS category share of that month's budget ----------
-model BudgetCategory {
-  id         String   @id @default(cuid())
-  budgetId   String   @map("budget_id")
-  categoryId String   @map("category_id") // e.g. QB account id or name
-  name       String
-  amount     Decimal  @db.Decimal(14, 2)
-  percent    Decimal? @db.Decimal(5, 2) // share of total COS when set
-
-  budget Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
-
-  @@unique([budgetId, categoryId])
-  @@map("budget_categories")
 }
 
 // ---------- App: User (extends Auth.js User with role, location, approval) ----------

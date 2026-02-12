@@ -1,3 +1,10 @@
+/** Actual COS for the displayed month from QuickBooks (when fetched). */
+export type CurrentCosByCategory = {
+  categoryId: string;
+  name: string;
+  amount: number;
+}[];
+
 export type BudgetDataType = {
   id: string;
   locationId: string;
@@ -15,6 +22,10 @@ export type BudgetDataType = {
     amount: number;
     percent: number | null;
   }[];
+  /** Actual Cost of Sales total for this month from QuickBooks (when available). */
+  currentCosTotal?: number;
+  /** Actual COS per category for this month from QuickBooks (when available). */
+  currentCosByCategory?: CurrentCosByCategory;
 };
 
 export type BudgetCategoryRow = {
@@ -35,6 +46,10 @@ export type BudgetWithLocationAndCategories = {
   error?: string | null;
   location: { id: string; code: string; name: string } | null;
   categories: BudgetCategoryRow[];
+  /** Actual Cost of Sales total for this month from QuickBooks (when available). */
+  currentCosTotal?: number;
+  /** Actual COS per category for this month from QuickBooks (when available). */
+  currentCosByCategory?: { categoryId: string; name: string; amount: number }[];
 };
 
 export type BudgetViewProps = {

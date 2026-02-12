@@ -1,6 +1,6 @@
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -17,6 +17,11 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
+  --color-chart-10: var(--chart-10);
+  --color-chart-9: var(--chart-9);
+  --color-chart-8: var(--chart-8);
+  --color-chart-7: var(--chart-7);
+  --color-chart-6: var(--chart-6);
   --color-chart-5: var(--chart-5);
   --color-chart-4: var(--chart-4);
   --color-chart-3: var(--chart-3);
@@ -63,15 +68,20 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(0.6167 0.2747 30.17);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --chart-1: oklch(0.6376 0.1028 272.35);
+  --chart-2: oklch(0.7747 0.0596 250.46);
+  --chart-3: oklch(0.8459 0.0609 174.93);
+  --chart-4: oklch(0.8972 0.1039 88.82);
+  --chart-5: oklch(0.7313 0.0428 130.48);
+  --chart-6: oklch(0.6179 0.013 37.39);
+  --chart-7: oklch(0.5068 0 0);
+  --chart-8: oklch(0.7287 0.0839 331.92);
+  --chart-9: oklch(0.6115 0.0714 276.04);
+  --chart-10: oklch(0.5321 0.0954 296.61);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -106,6 +116,11 @@
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
+  --chart-6: oklch(0.69 0.2 252);
+  --chart-7: oklch(0.74 0.15 146);
+  --chart-8: oklch(0.7 0.2 322);
+  --chart-9: oklch(0.76 0.2 36);
+  --chart-10: oklch(0.66 0.15 204);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -122,5 +137,31 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .link-underline-anim {
+    position: relative;
+    display: inline-block;
+    text-decoration: none;
+  }
+
+  .link-underline-anim::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -2px;
+    width: 100%;
+    height: 1px;
+    background-color: currentColor;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 180ms ease;
+  }
+
+  .link-underline-anim:hover::after,
+  .link-underline-anim:focus-visible::after {
+    transform: scaleX(1);
   }
 }

@@ -140,7 +140,6 @@ export async function POST(request: NextRequest) {
       id: b.id,
       locationId: b.locationId,
       totalAmount: Number(b.totalAmount),
-      categoriesCount: b.categories.length,
     }));
 
     return NextResponse.json({

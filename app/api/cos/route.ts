@@ -8,10 +8,9 @@ import { canSetBudget } from '@/lib/auth';
 import {
   getReferenceIncomeAndCos,
   getOrCreateBudgetSettings,
-  isValidYearMonth,
 } from '@/lib/budget';
 import { prisma } from '@/lib/prisma';
-import { getCurrentYearMonth } from '@/lib/utils';
+import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
   try {
