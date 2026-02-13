@@ -385,7 +385,31 @@ function sectionLineItems(
 }
 
 /**
- * Extract COS categories and their direct subcategories (one level).
+ * Recursively emit COS line items for one row and all nested children (path = indices from root).
+ * Id format: qb-{path[0]}-{path[1]}-... (path only, so depth is unbounded and tree is buildable).
+ */
+function sectionCosLineItemsRecurse(
+  row: PlRow,
+  path: number[],
+  out: { id: string; name: string; amount: number }[],
+): void {
+  const name = categoryOrLineName(row);
+  if (!name) return;
+  if (!row?.Header && /^cost of (goods )?sold$/i.test(name.trim())) return;
+
+  const id = `qb-${path.join('-')}`;
+  out.push({ id, name, amount: rowTotal(row) });
+
+  const subRows = row?.Rows?.Row;
+  if (!Array.isArray(subRows) || subRows.length === 0) return;
+
+  subRows.forEach((sub, idx) => {
+    sectionCosLineItemsRecurse(sub, [...path, idx], out);
+  });
+}
+
+/**
+ * Extract COS categories and all nested levels (recursive).
  * - Category name from Header.ColData[0] (Section) or ColData[0] (Data).
  * - Amounts from Summary when present, else ColData.
  * - Skips the trailing "Cost of Goods Sold" total line (same as section title).
@@ -398,33 +422,7 @@ function sectionCosLineItems(
   const rowList = Array.isArray(r?.Rows?.Row) ? r.Rows.Row : [];
 
   rowList.forEach((category, catIdx) => {
-    const catName = categoryOrLineName(category);
-    if (!catName) return;
-    // Skip the duplicate total line (Data row named "Cost of Goods Sold" at end of section)
-    if (!category?.Header && /^cost of (goods )?sold$/i.test(catName.trim())) {
-      return;
-    }
-
-    // 1. Emit the category line (COS1, COS2, ... COS7)
-    out.push({
-      id: `qb-${catIdx}-${catName.replace(/\s+/g, '-')}`,
-      name: catName,
-      amount: rowTotal(category),
-    });
-
-    // 2. Emit one level of subcategories only (name + Summary amount)
-    const subRows = category?.Rows?.Row;
-    if (!Array.isArray(subRows) || subRows.length === 0) return;
-
-    subRows.forEach((sub, subIdx) => {
-      const subName = categoryOrLineName(sub);
-      if (!subName) return;
-      out.push({
-        id: `qb-${catIdx}-${subIdx}-${subName.replace(/\s+/g, '-')}`,
-        name: subName,
-        amount: rowTotal(sub),
-      });
-    });
+    sectionCosLineItemsRecurse(category, [catIdx], out);
   });
 
   return out;

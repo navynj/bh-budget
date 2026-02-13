@@ -7,34 +7,46 @@ type CategoryGroup = {
   subcategories: BudgetCategoryRow[];
 };
 
-/** Parse QB categoryId: qb-{catIdx}-* = category, qb-{catIdx}-{subIdx}-* = subcategory */
+/** Path from root: leading numeric segments after "qb" (e.g. qb-0-0-0 → [0,0,0], qb-0-COS1 → [0]). */
+export function parseCategoryPath(categoryId: string): number[] {
+  const parts = categoryId.split('-');
+  if (parts.length < 2 || parts[0] !== 'qb') return [];
+  const path: number[] = [];
+  for (let i = 1; i < parts.length; i++) {
+    if (/^\d+$/.test(parts[i])) path.push(parseInt(parts[i], 10));
+    else break;
+  }
+  return path;
+}
+
+/** Parse QB categoryId: qb-{catIdx}-* = category, qb-{catIdx}-{subIdx}-* = subcategory (supports path-only ids). */
 export function parseCategoryId(categoryId: string): {
   catIdx: number;
   subIdx?: number;
+  path: number[];
 } {
-  const parts = categoryId.split('-');
-  if (parts.length < 2 || parts[0] !== 'qb') return { catIdx: -1 };
-  const catIdx = parseInt(parts[1], 10);
-  if (parts.length >= 4 && /^\d+$/.test(parts[2])) {
-    return { catIdx, subIdx: parseInt(parts[2], 10) };
-  }
-  return { catIdx };
+  const path = parseCategoryPath(categoryId);
+  const catIdx = path[0] ?? -1;
+  const subIdx = path.length >= 2 ? path[1] : undefined;
+  return { catIdx, subIdx, path };
 }
 
-/** Group flat categories into parent + subcategories (by qb-{catIdx}-* and qb-{catIdx}-{subIdx}-*). */
+/** Group flat categories into parent + direct subcategories (by path length 1 vs 2). */
 export function groupCategoriesWithSubs(
   categories: BudgetCategoryRow[],
 ): { category: BudgetCategoryRow; subcategories: BudgetCategoryRow[] }[] {
   const byCatIdx = new Map<number, CategoryGroup>();
 
   for (const c of categories) {
-    const { catIdx, subIdx } = parseCategoryId(c.categoryId);
+    const { catIdx, path } = parseCategoryId(c.categoryId);
     if (catIdx < 0) continue;
+    const isTopLevel = path.length === 1;
+    const isDirectChild = path.length === 2;
     const existing = byCatIdx.get(catIdx) ?? { category: null, subcategories: [] };
-    if (subIdx === undefined) {
+    if (isTopLevel) {
       existing.category = c;
       byCatIdx.set(catIdx, existing);
-    } else {
+    } else if (isDirectChild) {
       existing.subcategories.push(c);
       byCatIdx.set(catIdx, existing);
     }
@@ -47,6 +59,56 @@ export function groupCategoriesWithSubs(
       (group): group is { category: BudgetCategoryRow; subcategories: BudgetCategoryRow[] } =>
         group.category != null,
     );
+}
+
+export type CategoryTreeNode = {
+  category: BudgetCategoryRow;
+  children: CategoryTreeNode[];
+};
+
+/** Build a full tree from flat categories (by path prefix). Root nodes have path length 1. */
+export function buildCategoryTree(categories: BudgetCategoryRow[]): CategoryTreeNode[] {
+  const byPath = new Map<string, BudgetCategoryRow>();
+  for (const c of categories) {
+    const path = parseCategoryPath(c.categoryId);
+    if (path.length === 0) continue;
+    byPath.set(path.join('-'), c);
+  }
+
+  function childrenOf(path: number[]): CategoryTreeNode[] {
+    const depth = path.length + 1;
+    const result: CategoryTreeNode[] = [];
+    let idx = 0;
+    while (true) {
+      const childPath = [...path, idx];
+      const key = childPath.join('-');
+      const row = byPath.get(key);
+      if (row == null) break;
+      result.push({
+        category: row,
+        children: childrenOf(childPath),
+      });
+      idx += 1;
+    }
+    return result;
+  }
+
+  const roots: CategoryTreeNode[] = [];
+  let rootIdx = 0;
+  while (true) {
+    const path = [rootIdx];
+    const key = path.join('-');
+    const row = byPath.get(key);
+    if (row == null) break;
+    roots.push({ category: row, children: childrenOf(path) });
+    rootIdx += 1;
+  }
+  return roots;
+}
+
+/** True when this category (or its name) should show full nested tree and collapsible rows. */
+export function isCos1Branch(name: string): boolean {
+  return name.includes('COS1');
 }
 
 export function formatPercent(percent: number | null): string | null {

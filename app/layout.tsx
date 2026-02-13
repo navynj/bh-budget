@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Suspense } from 'react';
 import { Toaster } from '@/components/ui/sonner';
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { NavigationProgressProvider } from '@/components/providers/NavigationProgress';
 import './globals.css';
 
@@ -41,10 +42,12 @@ export default async function RootLayout({
             </>
           }
         >
-          <NavigationProgressProvider>
-            {children}
-            <Toaster position="top-center" />
-          </NavigationProgressProvider>
+          <TooltipProvider>
+            <NavigationProgressProvider>
+              {children}
+              <Toaster position="top-center" />
+            </NavigationProgressProvider>
+          </TooltipProvider>
         </Suspense>
       </body>
     </html>

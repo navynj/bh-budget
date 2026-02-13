@@ -2,6 +2,7 @@
 
 import ChartPieDonutText from '@/components/chart/DonutChart';
 import { ChartSkeleton } from '@/components/features/budget/card/BudgetCardSkeleton';
+import { parseCategoryPath } from '@/components/features/budget/category-list/helpers';
 import { type ChartConfig } from '@/components/ui/chart';
 import { CHART_COLORS } from '@/constants/color';
 import { cn, formatCurrency } from '@/lib/utils';
@@ -13,17 +14,14 @@ interface TotalBudgetChartProps extends ClassName {
   size?: 'sm' | 'md' | 'lg';
 }
 
-const isTopLevelCategory = (categoryId: string) => {
-  const parts = categoryId.split('-');
-  if (parts.length < 2 || parts[0] !== 'qb') return false;
-  return !(parts.length >= 4 && /^\d+$/.test(parts[2] ?? ''));
-};
+/** Only top-level COS categories (path length 1) are shown in the chart. */
+const isTopLevelCategory = (categoryId: string) =>
+  parseCategoryPath(categoryId).length === 1;
 
 const getTopLevelCategoryIndex = (categoryId: string): number => {
-  const parts = categoryId.split('-');
-  if (parts.length < 2 || parts[0] !== 'qb') return Number.MAX_SAFE_INTEGER;
-  const idx = Number.parseInt(parts[1] ?? '', 10);
-  return Number.isFinite(idx) ? idx : Number.MAX_SAFE_INTEGER;
+  const path = parseCategoryPath(categoryId);
+  if (path.length === 0) return Number.MAX_SAFE_INTEGER;
+  return path[0] ?? Number.MAX_SAFE_INTEGER;
 };
 
 const TotalBudgetChart = ({

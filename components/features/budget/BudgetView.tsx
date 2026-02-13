@@ -3,6 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Spinner } from '@/components/ui/spinner';
+import { TruncateWithTooltip } from '@/components/ui/truncate-with-tooltip';
 import { cn } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import React from 'react';
@@ -136,7 +137,10 @@ function BudgetCard({
           <ul className="mt-3 space-y-1 border-t pt-3 text-sm">
             {categories.map((c) => (
               <li key={c.id} className="flex justify-between gap-2">
-                <span className="text-muted-foreground truncate">{c.name}</span>
+                <TruncateWithTooltip
+                  content={c.name}
+                  className="text-muted-foreground"
+                />
                 <span className="shrink-0">
                   {formatCurrency(Number(c.amount))}
                 </span>
