@@ -1,5 +1,4 @@
 import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
-import { BudgetSettingsForm } from '@/components/features/budget/form/BudgetSettingsForm';
 import { auth, canSetBudget } from '@/lib/auth';
 import {
   attachCurrentMonthCosToBudgets,
@@ -7,7 +6,6 @@ import {
   ensureBudgetsForMonth,
   getBudgetByLocationAndMonth,
   getBudgetsByMonth,
-  getOrCreateBudgetSettings,
 } from '@/lib/budget';
 import { AppError, GENERIC_ERROR_MESSAGE } from '@/lib/errors';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
@@ -60,8 +58,6 @@ export default async function DashboardPage({ searchParams }: Props) {
   budgetsList = await getBudgetsByMonth(yearMonth);
   budgetsList = await attachCurrentMonthCosToBudgets(budgetsList, yearMonth);
 
-  const settings = await getOrCreateBudgetSettings();
-
   return (
     <>
       <BudgetCardList
@@ -72,12 +68,6 @@ export default async function DashboardPage({ searchParams }: Props) {
         locationId={managerLocationId ?? null}
         budgetError={budgetError}
       />
-      {isOfficeOrAdmin && (
-        <BudgetSettingsForm
-          initialBudgetRate={Number(settings.budgetRate)}
-          initialReferencePeriodMonths={settings.referencePeriodMonths}
-        />
-      )}
     </>
   );
 }

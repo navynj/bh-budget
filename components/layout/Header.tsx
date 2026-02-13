@@ -1,10 +1,16 @@
-import { auth } from '@/lib/auth';
+import { auth, canSetBudget } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import React from 'react';
 import SignOutButton from '../features/auth/SignOutButton';
 import Link from 'next/link';
+import { BudgetSettingsDialog } from '../features/budget/BudgetSettingsDialog';
 
-const Header = async () => {
+type HeaderProps = {
+  showBudgetSettings?: boolean;
+  budgetSettings?: { budgetRate: number; referencePeriodMonths: number };
+};
+
+const Header = async ({ showBudgetSettings, budgetSettings }: HeaderProps) => {
   const session = await auth();
   if (!session?.user) redirect('/auth');
 
@@ -32,7 +38,15 @@ const Header = async () => {
             </p>
           </div>
         </div>
-        <SignOutButton size="sm" />
+        <div className="flex items-center gap-2">
+          {showBudgetSettings && budgetSettings && (
+            <BudgetSettingsDialog
+              initialBudgetRate={budgetSettings.budgetRate}
+              initialReferencePeriodMonths={budgetSettings.referencePeriodMonths}
+            />
+          )}
+          <SignOutButton size="sm" />
+        </div>
       </header>
     )
   );

@@ -1,5 +1,4 @@
 import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
-import { BudgetSettingsForm } from '@/components/features/budget/form/BudgetSettingsForm';
 import OnboardingList from '@/components/features/onboard/OnboardingList';
 import Header from '@/components/layout/Header';
 import MonthNav from '@/components/layout/MonthNav';
@@ -42,10 +41,24 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
   // ===============================
   const yearMonth = getCurrentYearMonth();
 
+  const isOfficeOrAdmin = canSetBudget(session?.user?.role);
+  const budgetSettings =
+    isOfficeOrAdmin ? await getOrCreateBudgetSettings() : null;
+
   return (
     <div className="flex min-h-dvh flex-col w-full min-w-0 max-w-full p-4 md:p-8">
       <main className="flex-1 min-w-0">
-        <Header />
+        <Header
+          showBudgetSettings={isOfficeOrAdmin}
+          budgetSettings={
+            budgetSettings
+              ? {
+                  budgetRate: Number(budgetSettings.budgetRate),
+                  referencePeriodMonths: budgetSettings.referencePeriodMonths,
+                }
+              : undefined
+          }
+        />
         <div className="space-y-6">
           <OnboardingList canApprove={canApprove} pending={pending} />
           <Suspense fallback={null}>
