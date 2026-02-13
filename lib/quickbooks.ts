@@ -316,24 +316,28 @@ function findSection(
   return undefined;
 }
 
-/** Extract numeric total from a row (Summary or ColData). */
+/**
+ * Extract numeric total from a row (Summary or ColData).
+ * For Summary: ColData[0] is the label; ColData[1..n] are period columns (e.g. per month).
+ * We sum all period columns to get the total for the report date range.
+ */
 function rowTotal(row: unknown): number {
   const r = row as {
     Summary?: { ColData?: { value?: unknown }[] };
     ColData?: { value?: unknown }[];
   };
+
   const summary = r?.Summary?.ColData;
-  if (Array.isArray(summary)) {
-    for (let i = 1; i < summary.length; i++) {
-      const v = parseAmount(summary[i]?.value);
-      if (v > 0) return v;
-    }
-    return parseAmount(summary[0]?.value);
-  }
   const colData = r?.ColData;
-  if (Array.isArray(colData) && colData.length >= 2) {
-    return parseAmount(colData[1]?.value ?? colData[colData.length - 1]?.value);
+
+  if (Array.isArray(summary) && summary.length >= 2) {
+    return parseAmount(summary[1]?.value);
   }
+
+  if (Array.isArray(colData) && colData.length >= 2) {
+    return parseAmount(colData[1]?.value);
+  }
+
   return 0;
 }
 
@@ -397,10 +401,7 @@ function sectionCosLineItems(
     const catName = categoryOrLineName(category);
     if (!catName) return;
     // Skip the duplicate total line (Data row named "Cost of Goods Sold" at end of section)
-    if (
-      !category?.Header &&
-      /^cost of (goods )?sold$/i.test(catName.trim())
-    ) {
+    if (!category?.Header && /^cost of (goods )?sold$/i.test(catName.trim())) {
       return;
     }
 
@@ -443,7 +444,7 @@ export function parseCosTotalFromReportRows(
   rows: { Row?: unknown[] } | undefined,
 ): number {
   const cosSection = findSection(rows, (t) =>
-    /cost of (goods )?sold|cost of sales|cogs/i.test(t.trim()),
+    /cost of (goods )?sold|cost of sales/i.test(t.trim()),
   );
   if (!cosSection) return 0;
   return rowTotal(cosSection);
@@ -454,7 +455,7 @@ export function parseCosFromReportRows(
   rows: { Row?: unknown[] } | undefined,
 ): { categoryId: string; name: string; amount: number }[] {
   const cosSection = findSection(rows, (t) =>
-    /cost of (goods )?sold|cost of sales|cogs/i.test(t.trim()),
+    /cost of (goods )?sold|cost of sales/i.test(t.trim()),
   );
   if (!cosSection) return [];
 
@@ -528,10 +529,12 @@ export async function fetchProfitAndLossReport(
   };
   const rows = report?.Rows;
 
+  const incomeTotal = parseIncomeFromReportRows(rows);
+
   switch (dataOption) {
     case 'income,cos':
       return {
-        incomeTotal: parseIncomeFromReportRows(rows),
+        incomeTotal,
         cosTotal: parseCosTotalFromReportRows(rows),
         cosByCategory: parseCosFromReportRows(rows),
       };

@@ -46,15 +46,19 @@ const LocationPage = async ({
   if (!budget) {
     const session = await auth();
     if (!session?.user?.id) redirect('/auth');
+
     const created = await ensureBudgetForMonth({
       locationId: id,
       yearMonth,
       userId: session.user.id,
     });
+
     budget = mapBudgetToDataType(created);
   }
+
   const [withCos] = await attachCurrentMonthCosToBudgets([budget], yearMonth);
   budget = withCos;
+
   return (
     <div className="flex flex-col md:flex-row gap-4">
       <TotalBudgetChart

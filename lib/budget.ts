@@ -21,25 +21,58 @@ export type ReferenceData = {
 };
 
 /**
- * Compute start_date and end_date (YYYY-MM-DD) for a reference period ending at endYearMonth (YYYY-MM).
+ * Compute start_date and end_date (YYYY-MM-DD) for a reference period of the last N months
+ * *before* endYearMonth (i.e. ending at the previous month, not including endYearMonth).
+ * Example: endYearMonth=2025-02, months=6 → 2024-08-01 ~ 2025-01-31 (Aug through Jan).
  */
-function referenceDateRange(
+function referencePreviousMonthRange(
   endYearMonth: string,
-  months: number,
+  monthRange: number,
 ): {
   startDate: string;
   endDate: string;
 } {
   const [y, m] = endYearMonth.split('-').map(Number);
   const month0 = (m ?? 1) - 1;
-  const end = new Date(y, month0, 1);
-  const start = new Date(end);
-  start.setMonth(start.getMonth() - (months - 1));
-  const lastDay = new Date(y, month0 + 1, 0).getDate();
+
+  // End of reference period = last day of the month *before* endYearMonth
+  const endOfRef = new Date(y, month0, 0); // day 0 = last day of previous month
+
+  const endYear = endOfRef.getFullYear();
+  const endMonth0 = endOfRef.getMonth();
+  const lastDay = endOfRef.getDate();
+
+  const start = new Date(endYear, endMonth0, 1);
+  start.setMonth(start.getMonth() - monthRange + 1);
+
   const pad = (n: number) => String(n).padStart(2, '0');
+
   return {
     startDate: `${start.getFullYear()}-${pad(start.getMonth() + 1)}-01`,
-    endDate: `${y}-${pad(m ?? 1)}-${pad(lastDay)}`,
+    endDate: `${endYear}-${pad(endMonth0 + 1)}-${pad(lastDay)}`,
+  };
+}
+
+function referenceCurrentMonthRange(yearMonth: string): {
+  startDate: string;
+  endDate: string;
+} {
+  const [y, m] = yearMonth.split('-').map(Number);
+  const start = new Date(y, m - 1, 1);
+  let current = new Date();
+
+  if (y !== current.getFullYear() || current.getMonth() !== m - 1) {
+    current = new Date(y, m, 0);
+  }
+
+  const result = {
+    startDate: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`,
+    endDate: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`,
+  };
+
+  return {
+    startDate: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-01`,
+    endDate: `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`,
   };
 }
 
@@ -73,7 +106,10 @@ export async function getReferenceIncomeAndCos(
   if (!isQuickBooksConfigured()) {
     throw new AppError('QuickBooks is not configured');
   }
-  const { startDate, endDate } = referenceDateRange(endYearMonth, months);
+  const { startDate, endDate } = referencePreviousMonthRange(
+    endYearMonth,
+    months,
+  );
 
   try {
     return await withValidTokenForLocation(locationId, (accessToken, realmId) =>
@@ -103,12 +139,13 @@ export async function getReferenceIncomeAndCos(
 export async function getCurrentMonthCos(
   locationId: string,
   date: { year: number; month: number },
+  months: number,
 ): Promise<{
   cosTotal?: number;
   cosByCategory?: { categoryId: string; name: string; amount: number }[];
 }> {
   const dateString = formatYearMonth(date.year, date.month);
-  const { startDate, endDate } = referenceDateRange(dateString, 1);
+  const { startDate, endDate } = referenceCurrentMonthRange(dateString);
 
   const report = await withValidTokenForLocation(
     locationId,
@@ -129,6 +166,7 @@ export async function getCurrentMonthCos(
     report.cosTotal != null && Number.isFinite(report.cosTotal)
       ? report.cosTotal
       : cosByCategory.reduce((s, c) => s + c.amount, 0);
+
   return { cosTotal, cosByCategory };
 }
 
@@ -154,7 +192,7 @@ export function computeTotalBudget(
 ): number {
   if (referenceMonths <= 0) return 0;
   const averageMonthlyIncome = incomeTotal / referenceMonths;
-  return Math.round(averageMonthlyIncome * rate * 100) / 100;
+  return Math.round(averageMonthlyIncome * rate);
 }
 
 /** Distribute total budget to categories by COS percentage. */
@@ -257,9 +295,18 @@ export async function ensureBudgetForMonth(
 
     const ref =
       providedRef ??
-      (await getReferenceIncomeAndCos(userId, locationId, yearMonth, refMonths));
+      (await getReferenceIncomeAndCos(
+        userId,
+        locationId,
+        yearMonth,
+        refMonths,
+      ));
 
-    const totalAmount = computeTotalBudget(ref.incomeTotal ?? 0, rate, refMonths);
+    const totalAmount = computeTotalBudget(
+      ref.incomeTotal ?? 0,
+      rate,
+      refMonths,
+    );
 
     if (existing) {
       await prisma.budget.update({
@@ -350,20 +397,36 @@ export async function attachCurrentMonthCosToBudgets<
 ): Promise<
   (T & {
     currentCosTotal?: number;
-    currentCosByCategory?: { categoryId: string; name: string; amount: number }[];
+    currentCosByCategory?: {
+      categoryId: string;
+      name: string;
+      amount: number;
+    }[];
   })[]
 > {
-  if (!isValidYearMonth(yearMonth)) return budgets as (T & { currentCosTotal?: number; currentCosByCategory?: { categoryId: string; name: string; amount: number }[] })[];
+  if (!isValidYearMonth(yearMonth))
+    return budgets as (T & {
+      currentCosTotal?: number;
+      currentCosByCategory?: {
+        categoryId: string;
+        name: string;
+        amount: number;
+      }[];
+    })[];
   const { year, month } = parseYearMonth(yearMonth);
   const results = await Promise.allSettled(
-    budgets.map(async (b) => getCurrentMonthCos(b.locationId, { year, month })),
+    budgets.map(async (b) =>
+      getCurrentMonthCos(b.locationId, { year, month }, 1),
+    ),
   );
   return budgets.map((b, i) => {
     const r = results[i];
     if (r.status === 'fulfilled' && r.value.cosByCategory) {
       return {
         ...b,
-        currentCosTotal: r.value.cosTotal ?? r.value.cosByCategory.reduce((s, c) => s + c.amount, 0),
+        currentCosTotal:
+          r.value.cosTotal ??
+          r.value.cosByCategory.reduce((s, c) => s + c.amount, 0),
         currentCosByCategory: r.value.cosByCategory,
       };
     }

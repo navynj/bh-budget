@@ -47,15 +47,7 @@ export default async function DashboardPage({ searchParams }: Props) {
   let budgetError: string | null = null;
 
   try {
-    if (isOfficeOrAdmin) {
-      await ensureBudgetsForMonth(yearMonth, session.user.id);
-    } else if (managerLocationId) {
-      await ensureBudgetForMonth({
-        locationId: managerLocationId,
-        yearMonth,
-        userId: session.user.id,
-      });
-    }
+    await ensureBudgetsForMonth(yearMonth, session.user.id);
   } catch (e) {
     console.error(e);
     budgetError = e instanceof AppError ? e.message : GENERIC_ERROR_MESSAGE;
@@ -65,20 +57,8 @@ export default async function DashboardPage({ searchParams }: Props) {
   let budgetData: BudgetDataType | null = null;
   let budgetsList: BudgetDataType[] = [];
 
-  if (isOfficeOrAdmin) {
-    budgetsList = await getBudgetsByMonth(yearMonth);
-    budgetsList = await attachCurrentMonthCosToBudgets(budgetsList, yearMonth);
-  } else if (managerLocationId) {
-    budgetData =
-      (await getBudgetByLocationAndMonth(managerLocationId, yearMonth)) ?? null;
-    if (budgetData) {
-      const [withCos] = await attachCurrentMonthCosToBudgets(
-        [budgetData],
-        yearMonth,
-      );
-      budgetData = withCos;
-    }
-  }
+  budgetsList = await getBudgetsByMonth(yearMonth);
+  budgetsList = await attachCurrentMonthCosToBudgets(budgetsList, yearMonth);
 
   const settings = await getOrCreateBudgetSettings();
 
