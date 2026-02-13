@@ -3,6 +3,7 @@ import { BudgetSettingsForm } from '@/components/features/budget/form/BudgetSett
 import OnboardingList from '@/components/features/onboard/OnboardingList';
 import Header from '@/components/layout/Header';
 import MonthNav from '@/components/layout/MonthNav';
+import { Spinner } from '@/components/ui/spinner';
 import { auth, canSetBudget } from '@/lib/auth';
 import {
   ensureBudgetForMonth,
@@ -42,8 +43,8 @@ const layout = async ({ children }: { children: React.ReactNode }) => {
   const yearMonth = getCurrentYearMonth();
 
   return (
-    <div className="flex min-h-screen flex-col p-4 md:p-8">
-      <main className="flex-1">
+    <div className="flex min-h-dvh flex-col w-full min-w-0 max-w-full p-4 md:p-8">
+      <main className="flex-1 min-w-0">
         <Header />
         <div className="space-y-6">
           <OnboardingList canApprove={canApprove} pending={pending} />

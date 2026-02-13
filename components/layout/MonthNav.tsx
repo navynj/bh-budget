@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -35,6 +35,8 @@ export default function MonthNav({
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const pathname = usePathname();
+
   const [popoverOpen, setPopoverOpen] = useState(false);
   const effectiveYearMonth =
     searchParams.get('yearMonth') ?? currentYearMonth ?? getCurrentYearMonth();
@@ -52,7 +54,7 @@ export default function MonthNav({
     navigationProgress?.startNavigation();
     const params = new URLSearchParams(searchParams.toString());
     params.set('yearMonth', yearMonth);
-    router.push(`/budget?${params.toString()}`);
+    router.push(`${pathname}?${params.toString()}`);
   };
 
   const handleMonthSelect = (yearMonth: string) => {
@@ -80,7 +82,7 @@ export default function MonthNav({
         <PopoverTrigger asChild>
           <button
             type="button"
-            className="min-w-[180px] rounded-md px-2 py-1.5 text-center font-medium outline-none ring-offset-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+            className="cursor-pointer min-w-[180px] rounded-md px-2 py-1.5 text-center font-medium outline-none ring-offset-background hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
             aria-label="Select month and year"
             aria-live="polite"
           >

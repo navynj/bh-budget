@@ -9,8 +9,10 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from '@/components/ui/chart';
+import { cn } from '@/lib/utils';
 
 interface DonutChartProps {
+  className?: string;
   title?: string;
   description?: string;
   chartData: Array<Record<string, string | number>>;
@@ -27,9 +29,12 @@ interface DonutChartProps {
     name: string,
     payload: Record<string, string | number>,
   ) => ReactNode;
+  cx?: number;
+  cy?: number;
 }
 
 const ChartPieDonutText = ({
+  className,
   title,
   description,
   chartData,
@@ -42,11 +47,13 @@ const ChartPieDonutText = ({
   endAngle = -270,
   tooltipUnit,
   tooltipFormatter,
+  cx,
+  cy,
 }: DonutChartProps) => {
   return (
     <ChartContainer
       config={chartConfig}
-      className="mx-auto aspect-square max-h-[250px]"
+      className={cn('mx-auto aspect-square max-h-[250px] ', className ?? '')}
     >
       <PieChart>
         <ChartTooltip
@@ -67,7 +74,9 @@ const ChartPieDonutText = ({
                   <>
                     <span className="text-muted-foreground">{name}</span>
                     <span className="text-foreground ml-2 font-mono font-medium tabular-nums">
-                      {typeof value === 'number' ? value.toLocaleString() : value}
+                      {typeof value === 'number'
+                        ? value.toLocaleString()
+                        : value}
                       {tooltipUnit ?? ''}
                     </span>
                   </>
@@ -84,6 +93,8 @@ const ChartPieDonutText = ({
           strokeWidth={strokeWidth}
           startAngle={startAngle}
           endAngle={endAngle}
+          cx={cx}
+          cy={cy}
         >
           {(title || description) && (
             <Label

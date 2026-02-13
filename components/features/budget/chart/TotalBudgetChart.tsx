@@ -1,13 +1,17 @@
+'use client';
+
 import ChartPieDonutText from '@/components/chart/DonutChart';
+import { ChartSkeleton } from '@/components/features/budget/card/BudgetCardSkeleton';
 import { type ChartConfig } from '@/components/ui/chart';
 import { CHART_COLORS } from '@/constants/color';
-import { formatCurrency } from '@/lib/utils';
+import { cn, formatCurrency } from '@/lib/utils';
+import { ClassName } from '@/types/className';
 
-type TotalBudgetChartProps = {
+interface TotalBudgetChartProps extends ClassName {
   totalAmount: number; // Budget total; all chart percentages are share of budget
-  currentCosTotal: number;
   currentCosByCategory?: { categoryId: string; name: string; amount: number }[];
-};
+  size?: 'sm' | 'md' | 'lg';
+}
 
 const isTopLevelCategory = (categoryId: string) => {
   const parts = categoryId.split('-');
@@ -23,16 +27,31 @@ const getTopLevelCategoryIndex = (categoryId: string): number => {
 };
 
 const TotalBudgetChart = ({
+  size = 'md',
   totalAmount,
-  currentCosTotal,
   currentCosByCategory,
+  className,
 }: TotalBudgetChartProps) => {
-  if (
+  const hasValidBudget =
+    Number.isFinite(totalAmount) && totalAmount > 0;
+  const hasNoChartData =
+    !currentCosByCategory?.length ||
     !Number.isFinite(totalAmount) ||
-    totalAmount <= 0 ||
-    !currentCosByCategory?.length
-  ) {
-    return null;
+    totalAmount <= 0;
+
+  if (hasNoChartData) {
+    return hasValidBudget ? (
+      <ChartSkeleton
+        className={cn(
+          size === 'sm'
+            ? 'max-h-[150px]'
+            : size === 'md'
+              ? 'max-h-[300px]'
+              : 'max-h-[400px]',
+          className,
+        )}
+      />
+    ) : null;
   }
 
   const topLevelCategories = [...currentCosByCategory]
@@ -46,7 +65,18 @@ const TotalBudgetChart = ({
     .filter((c) => Number.isFinite(c.cos) && c.cos > 0);
 
   if (topLevelCategories.length === 0) {
-    return null;
+    return (
+      <ChartSkeleton
+        className={cn(
+          size === 'sm'
+            ? 'max-h-[150px]'
+            : size === 'md'
+              ? 'max-h-[300px]'
+              : 'max-h-[400px]',
+          className,
+        )}
+      />
+    );
   }
 
   // All percentages are share of Budget (totalAmount), not of current COS
@@ -57,10 +87,7 @@ const TotalBudgetChart = ({
     fill: CHART_COLORS[index % CHART_COLORS.length],
   }));
 
-  const currentAmount = topLevelCategories.reduce(
-    (sum, c) => sum + c.cos,
-    0,
-  );
+  const currentAmount = topLevelCategories.reduce((sum, c) => sum + c.cos, 0);
   const currentPercentValue = (currentAmount / totalAmount) * 100;
   const currentPercent = currentPercentValue.toFixed(1);
   const isOverBudget = currentAmount > totalAmount;
@@ -69,7 +96,9 @@ const TotalBudgetChart = ({
     ? Number(((overAmount / totalAmount) * 100).toFixed(2))
     : 0;
   const remainingAmount = Math.max(0, totalAmount - currentAmount);
-  const remainingPercent = Number(((remainingAmount / totalAmount) * 100).toFixed(2));
+  const remainingPercent = Number(
+    ((remainingAmount / totalAmount) * 100).toFixed(2),
+  );
   const shouldShowRemaining = !isOverBudget && remainingPercent >= 0.1;
   const shouldShowOver = isOverBudget && overPercent >= 0.1;
 
@@ -122,6 +151,16 @@ const TotalBudgetChart = ({
 
   return (
     <ChartPieDonutText
+      className={cn(
+        className,
+        size === 'sm'
+          ? 'max-h-[150px]'
+          : size === 'md'
+            ? 'max-h-[300px]'
+            : 'max-h-[400px]',
+      )}
+      strokeWidth={size === 'sm' ? 3 : size === 'md' ? 5 : 7}
+      innerRadius={size === 'sm' ? 40 : size === 'md' ? 70 : 100}
       title={`${currentPercent}%`}
       description={`Cost of Sales`}
       chartData={chartData}

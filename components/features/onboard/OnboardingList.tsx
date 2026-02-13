@@ -18,8 +18,8 @@ const OnboardingList = ({ canApprove, pending }: OnboardingListProps) => {
 
   return (
     pending.length !== 0 && (
-      <Card>
-        <CardHeader>
+      <Card className="bg-yellow-50 border-yellow-300 flex flex-row justify-between gap-4">
+        <CardHeader className="flex-1 grid-rows-[auto_1fr]">
           <CardTitle>Pending approvals</CardTitle>
           <CardDescription>
             Users who completed onboarding and are waiting for admin or office
@@ -29,7 +29,11 @@ const OnboardingList = ({ canApprove, pending }: OnboardingListProps) => {
         <CardContent>
           <ul className="divide-y divide-border">
             {pending.map((user) => (
-              <PendingApprovalItem key={user.id} user={user} />
+              <PendingApprovalItem
+                key={user.id}
+                user={user}
+                className="bg-white"
+              />
             ))}
           </ul>
         </CardContent>

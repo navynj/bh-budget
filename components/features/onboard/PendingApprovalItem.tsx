@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { api } from '@/lib/api';
 import type { PendingUser } from '@/lib/onboarding';
+import { cn } from '@/lib/utils';
+import { ClassName } from '@/types/className';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -14,11 +16,14 @@ const ROLE_LABELS: Record<string, string> = {
   manager: 'Manager',
 };
 
-interface PendingApprovalItemProps {
+interface PendingApprovalItemProps extends ClassName {
   user: PendingUser;
 }
 
-export function PendingApprovalItem({ user }: PendingApprovalItemProps) {
+export function PendingApprovalItem({
+  user,
+  className,
+}: PendingApprovalItemProps) {
   const router = useRouter();
   const [approvingId, setApprovingId] = useState<string | null>(null);
 
@@ -51,7 +56,10 @@ export function PendingApprovalItem({ user }: PendingApprovalItemProps) {
   return (
     <li
       key={user.id}
-      className="flex flex-wrap items-center justify-between gap-3 border p-4 rounded-md"
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-3 border p-4 rounded-md',
+        className,
+      )}
     >
       <div className="min-w-0 flex-1">
         <p className="font-medium">{user.name || user.email || '—'}</p>

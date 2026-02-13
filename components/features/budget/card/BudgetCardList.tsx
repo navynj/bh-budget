@@ -13,6 +13,7 @@ function BudgetCardList({
   budget,
   budgets,
   budgetError,
+  hideChart = false,
 }: BudgetViewProps) {
   return (
     <BudgetCardListLayout budgetError={budgetError}>
@@ -21,6 +22,7 @@ function BudgetCardList({
         budget={budget}
         isOfficeOrAdmin={isOfficeOrAdmin}
         yearMonth={yearMonth}
+        hideChart={hideChart}
       />
     </BudgetCardListLayout>
   );
@@ -31,21 +33,23 @@ const BudgetCardListContent = ({
   budget,
   isOfficeOrAdmin,
   yearMonth,
+  hideChart = false,
 }: Pick<
   BudgetViewProps,
-  'budgets' | 'budget' | 'isOfficeOrAdmin' | 'yearMonth'
+  'budgets' | 'budget' | 'isOfficeOrAdmin' | 'yearMonth' | 'hideChart'
 >) => {
   // Office/admin: one list ordered by location.createdAt; reconnect from budget.error
   if (isOfficeOrAdmin && budgets.length > 0) {
     return (
-      <div className={cn('grid gap-4 sm:grid-cols-2 lg:grid-cols-3')}>
+      <div className={cn('grid grid-cols-1 gap-4 min-w-0 sm:grid-cols-2 lg:grid-cols-3 [&>*]:min-w-0')}>
         {budgets.map((b) => (
           <BudgetCard
             key={b.id}
-            b={b}
+            budget={b}
             isOfficeOrAdmin={isOfficeOrAdmin}
             yearMonth={yearMonth}
             needsReconnect={b.error === QB_REFRESH_EXPIRED}
+            hideChart={hideChart}
           />
         ))}
       </div>
@@ -54,12 +58,13 @@ const BudgetCardListContent = ({
 
   if (!!budget) {
     return (
-      <div className="max-w-full">
+      <div className="min-w-0 max-w-full">
         <BudgetCard
-          b={budget}
+          budget={budget}
           isOfficeOrAdmin={false}
           yearMonth={yearMonth}
           needsReconnect={budget.error === QB_REFRESH_EXPIRED}
+          hideChart={hideChart}
         />
       </div>
     );
@@ -93,7 +98,7 @@ const BudgetCardListLayout = ({
   }, [budgetError]);
 
   return (
-    <div className="space-y-3">
+    <div className="min-w-0 w-full space-y-3">
       {errorBlock}
       {children}
     </div>

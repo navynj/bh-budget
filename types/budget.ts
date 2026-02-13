@@ -60,4 +60,5 @@ export type BudgetViewProps = {
   locationId: string | null;
   /** Shown when budget create/get failed (e.g. QuickBooks not configured). */
   budgetError?: string | null;
-}
+  hideChart?: boolean;
+};

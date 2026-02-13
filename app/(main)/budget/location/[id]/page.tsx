@@ -1,9 +1,12 @@
-import BudgetCard from '@/components/features/budget/card/BudgetCard';
 import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
+import TotalBudgetChart from '@/components/features/budget/chart/TotalBudgetChart';
 import {
   attachCurrentMonthCosToBudgets,
+  ensureBudgetForMonth,
   getBudgetByLocationAndMonth,
+  mapBudgetToDataType,
 } from '@/lib/budget';
+import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 import { notFound, redirect } from 'next/navigation';
@@ -41,19 +44,34 @@ const LocationPage = async ({
   // ===============================
   let budget = await getBudgetByLocationAndMonth(id, yearMonth);
   if (!budget) {
-    redirect(`/budget/location/${id}?yearMonth=${yearMonth}`);
+    const session = await auth();
+    if (!session?.user?.id) redirect('/auth');
+    const created = await ensureBudgetForMonth({
+      locationId: id,
+      yearMonth,
+      userId: session.user.id,
+    });
+    budget = mapBudgetToDataType(created);
   }
   const [withCos] = await attachCurrentMonthCosToBudgets([budget], yearMonth);
   budget = withCos;
-
   return (
-    <BudgetCardList
-      yearMonth={yearMonth}
-      isOfficeOrAdmin={false}
-      budget={budget}
-      budgets={[]}
-      locationId={id}
-    />
+    <div className="flex flex-col md:flex-row gap-4">
+      <TotalBudgetChart
+        className="w-full md:w-2/3 max-h-[450px]"
+        size="lg"
+        totalAmount={budget.totalAmount}
+        currentCosByCategory={budget.currentCosByCategory ?? []}
+      />
+      <BudgetCardList
+        yearMonth={yearMonth}
+        isOfficeOrAdmin={false}
+        budget={budget}
+        budgets={[]}
+        locationId={id}
+        hideChart={true}
+      />
+    </div>
   );
 };
 
