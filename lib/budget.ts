@@ -434,6 +434,54 @@ export async function attachCurrentMonthCosToBudgets<
   });
 }
 
+/** Attach reference-period COS (N months before yearMonth) to each budget for category-budget ratio. */
+export async function attachReferenceCosToBudgets<
+  T extends { locationId: string; referencePeriodMonthsUsed?: number | null },
+>(
+  budgets: T[],
+  yearMonth: string,
+  userId: string,
+): Promise<
+  (T & {
+    referenceCosTotal?: number;
+    referenceCosByCategory?: {
+      categoryId: string;
+      name: string;
+      amount: number;
+    }[];
+  })[]
+> {
+  if (!isValidYearMonth(yearMonth))
+    return budgets as (T & {
+      referenceCosTotal?: number;
+      referenceCosByCategory?: {
+        categoryId: string;
+        name: string;
+        amount: number;
+      }[];
+    })[];
+  const results = await Promise.allSettled(
+    budgets.map(async (b) => {
+      const refMonths = b.referencePeriodMonthsUsed ?? DEFAULT_REFERENCE_PERIOD_MONTHS;
+      return getReferenceIncomeAndCos(userId, b.locationId, yearMonth, refMonths);
+    }),
+  );
+  return budgets.map((b, i) => {
+    const r = results[i];
+    if (r.status === 'fulfilled' && r.value.cosByCategory) {
+      const cosTotal =
+        r.value.cosTotal ??
+        r.value.cosByCategory.reduce((s, c) => s + c.amount, 0);
+      return {
+        ...b,
+        referenceCosTotal: cosTotal,
+        referenceCosByCategory: r.value.cosByCategory,
+      };
+    }
+    return b;
+  });
+}
+
 /** List all budgets for a given yearMonth (for office/admin). Ordered by location.createdAt. */
 export async function getBudgetsByMonth(
   yearMonth: string,

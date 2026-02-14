@@ -13,6 +13,7 @@ import BudgetAmountSummary from '../summary/BudgetAmountSummary';
 import Link from 'next/link';
 import { ArrowRightIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import CategoryBudgetBarChart from '../chart/CategoryBudgetBarChart';
 
 /** Derive display categories from current month COS (fetched from QuickBooks). Percent = category amount / Budget total. */
 function deriveDisplayCategories(
@@ -151,6 +152,15 @@ function BudgetCard({
           totalBudget={totalAmount}
           currentCosByCategory={budget.currentCosByCategory}
         />
+        {!hideChart && (
+          <CategoryBudgetBarChart
+            totalBudget={totalAmount}
+            currentCosByCategory={budget.currentCosByCategory}
+            referenceCosByCategory={budget.referenceCosByCategory}
+            referenceCosTotal={budget.referenceCosTotal}
+            className="mt-4"
+          />
+        )}
         {needsReconnect && (
           <ReconnectContent
             locationId={budget.locationId}

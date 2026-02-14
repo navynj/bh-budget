@@ -26,6 +26,10 @@ export type BudgetDataType = {
   currentCosTotal?: number;
   /** Actual COS per category for this month from QuickBooks (when available). */
   currentCosByCategory?: CurrentCosByCategory;
+  /** Reference-period COS total (N months before yearMonth) for category budget ratio. */
+  referenceCosTotal?: number;
+  /** Reference-period COS per category (N months before yearMonth). */
+  referenceCosByCategory?: { categoryId: string; name: string; amount: number }[];
 };
 
 export type BudgetCategoryRow = {
@@ -50,6 +54,10 @@ export type BudgetWithLocationAndCategories = {
   currentCosTotal?: number;
   /** Actual COS per category for this month from QuickBooks (when available). */
   currentCosByCategory?: { categoryId: string; name: string; amount: number }[];
+  /** Reference-period COS total (N months before yearMonth) for category budget ratio. */
+  referenceCosTotal?: number;
+  /** Reference-period COS per category (N months before yearMonth). */
+  referenceCosByCategory?: { categoryId: string; name: string; amount: number }[];
 };
 
 export type BudgetViewProps = {

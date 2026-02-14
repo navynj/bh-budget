@@ -61,27 +61,35 @@ const ChartPieDonutText = ({
           content={
             <ChartTooltipContent
               hideLabel
-              formatter={(value, name, item) =>
-                tooltipFormatter ? (
+              formatter={(value, name, item) => {
+                const payload =
+                  item &&
+                  typeof item === 'object' &&
+                  'payload' in item
+                    ? (item as { payload?: unknown }).payload
+                    : undefined;
+                return tooltipFormatter ? (
                   tooltipFormatter(
                     typeof value === 'number' || typeof value === 'string'
                       ? value
                       : String(value),
                     String(name),
-                    (item?.payload as Record<string, string | number>) ?? {},
+                    (payload as Record<string, string | number>) ?? {},
                   )
                 ) : (
                   <>
-                    <span className="text-muted-foreground">{name}</span>
+                    <span className="text-muted-foreground">
+                      {String(name ?? '')}
+                    </span>
                     <span className="text-foreground ml-2 font-mono font-medium tabular-nums">
                       {typeof value === 'number'
                         ? value.toLocaleString()
-                        : value}
+                        : String(value ?? '')}
                       {tooltipUnit ?? ''}
                     </span>
                   </>
-                )
-              }
+                );
+              }}
             />
           }
         />

@@ -2,10 +2,15 @@
 
 import ChartPieDonutText from '@/components/chart/DonutChart';
 import { ChartSkeleton } from '@/components/features/budget/card/BudgetCardSkeleton';
-import { parseCategoryPath } from '@/components/features/budget/category-list/helpers';
 import { type ChartConfig } from '@/components/ui/chart';
 import { CHART_COLORS } from '@/constants/color';
-import { cn, formatCurrency } from '@/lib/utils';
+import {
+  cn,
+  formatCurrency,
+  isTopLevelCategory,
+  getTopLevelCategoryIndex,
+  getTopLevelCategories,
+} from '@/lib/utils';
 import { ClassName } from '@/types/className';
 
 interface TotalBudgetChartProps extends ClassName {
@@ -14,24 +19,13 @@ interface TotalBudgetChartProps extends ClassName {
   size?: 'sm' | 'md' | 'lg';
 }
 
-/** Only top-level COS categories (path length 1) are shown in the chart. */
-const isTopLevelCategory = (categoryId: string) =>
-  parseCategoryPath(categoryId).length === 1;
-
-const getTopLevelCategoryIndex = (categoryId: string): number => {
-  const path = parseCategoryPath(categoryId);
-  if (path.length === 0) return Number.MAX_SAFE_INTEGER;
-  return path[0] ?? Number.MAX_SAFE_INTEGER;
-};
-
 const TotalBudgetChart = ({
   size = 'md',
   totalAmount,
   currentCosByCategory,
   className,
 }: TotalBudgetChartProps) => {
-  const hasValidBudget =
-    Number.isFinite(totalAmount) && totalAmount > 0;
+  const hasValidBudget = Number.isFinite(totalAmount) && totalAmount > 0;
   const hasNoChartData =
     !currentCosByCategory?.length ||
     !Number.isFinite(totalAmount) ||
@@ -52,15 +46,7 @@ const TotalBudgetChart = ({
     ) : null;
   }
 
-  const topLevelCategories = [...currentCosByCategory]
-    .filter((c) => isTopLevelCategory(c.categoryId))
-    .sort(
-      (a, b) =>
-        getTopLevelCategoryIndex(a.categoryId) -
-        getTopLevelCategoryIndex(b.categoryId),
-    )
-    .map((c) => ({ category: c.name, cos: c.amount }))
-    .filter((c) => Number.isFinite(c.cos) && c.cos > 0);
+  const topLevelCategories = getTopLevelCategories(currentCosByCategory);
 
   if (topLevelCategories.length === 0) {
     return (
@@ -108,7 +94,7 @@ const TotalBudgetChart = ({
             category: 'Remaining',
             amount: remainingAmount,
             cos: remainingPercent,
-            fill: 'var(--muted)',
+            fill: 'var(--muted-background)',
           },
         ]
       : []),

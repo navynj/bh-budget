@@ -2,6 +2,7 @@ import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
 import TotalBudgetChart from '@/components/features/budget/chart/TotalBudgetChart';
 import {
   attachCurrentMonthCosToBudgets,
+  attachReferenceCosToBudgets,
   ensureBudgetForMonth,
   getBudgetByLocationAndMonth,
   mapBudgetToDataType,
@@ -10,6 +11,7 @@ import { auth } from '@/lib/auth';
 import { prisma } from '@/lib/prisma';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 import { notFound, redirect } from 'next/navigation';
+import CategoryBudgetBarChart from '@/components/features/budget/chart/CategoryBudgetBarChart';
 
 const LocationPage = async ({
   params,
@@ -42,9 +44,9 @@ const LocationPage = async ({
   // ===============================
   // Budget
   // ===============================
+  const session = await auth();
   let budget = await getBudgetByLocationAndMonth(id, yearMonth);
   if (!budget) {
-    const session = await auth();
     if (!session?.user?.id) redirect('/auth');
 
     const created = await ensureBudgetForMonth({
@@ -58,15 +60,32 @@ const LocationPage = async ({
 
   const [withCos] = await attachCurrentMonthCosToBudgets([budget], yearMonth);
   budget = withCos;
+  if (session?.user?.id) {
+    const [withRef] = await attachReferenceCosToBudgets(
+      [budget],
+      yearMonth,
+      session.user.id,
+    );
+    budget = withRef;
+  }
 
   return (
     <div className="flex flex-col md:flex-row gap-4">
-      <TotalBudgetChart
-        className="w-full md:w-2/3 max-h-[450px]"
-        size="lg"
-        totalAmount={budget.totalAmount}
-        currentCosByCategory={budget.currentCosByCategory ?? []}
-      />
+      <div className='className="w-full md:w-2/3'>
+        <TotalBudgetChart
+          className="max-h-[450px]"
+          size="lg"
+          totalAmount={budget.totalAmount}
+          currentCosByCategory={budget.currentCosByCategory ?? []}
+        />
+        <CategoryBudgetBarChart
+          className="w-full md:w-2/3 md:mx-auto"
+          totalBudget={budget.totalAmount}
+          currentCosByCategory={budget.currentCosByCategory ?? []}
+          referenceCosByCategory={budget.referenceCosByCategory ?? []}
+          referenceCosTotal={budget.referenceCosTotal}
+        />
+      </div>
       <BudgetCardList
         yearMonth={yearMonth}
         isOfficeOrAdmin={false}

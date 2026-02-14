@@ -2,9 +2,8 @@ import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
 import { auth, canSetBudget } from '@/lib/auth';
 import {
   attachCurrentMonthCosToBudgets,
-  ensureBudgetForMonth,
+  attachReferenceCosToBudgets,
   ensureBudgetsForMonth,
-  getBudgetByLocationAndMonth,
   getBudgetsByMonth,
 } from '@/lib/budget';
 import { AppError, GENERIC_ERROR_MESSAGE } from '@/lib/errors';
@@ -57,6 +56,11 @@ export default async function DashboardPage({ searchParams }: Props) {
 
   budgetsList = await getBudgetsByMonth(yearMonth);
   budgetsList = await attachCurrentMonthCosToBudgets(budgetsList, yearMonth);
+  budgetsList = await attachReferenceCosToBudgets(
+    budgetsList,
+    yearMonth,
+    session.user.id,
+  );
 
   return (
     <>

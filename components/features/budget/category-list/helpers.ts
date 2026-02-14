@@ -1,23 +1,13 @@
 import { CHART_COLORS } from '@/constants/color';
+import { parseCategoryPath } from '@/lib/utils';
 import { BudgetWithLocationAndCategories } from '@/types/budget';
 
-export type BudgetCategoryRow = BudgetWithLocationAndCategories['categories'][number];
+export type BudgetCategoryRow =
+  BudgetWithLocationAndCategories['categories'][number];
 type CategoryGroup = {
   category: BudgetCategoryRow | null;
   subcategories: BudgetCategoryRow[];
 };
-
-/** Path from root: leading numeric segments after "qb" (e.g. qb-0-0-0 → [0,0,0], qb-0-COS1 → [0]). */
-export function parseCategoryPath(categoryId: string): number[] {
-  const parts = categoryId.split('-');
-  if (parts.length < 2 || parts[0] !== 'qb') return [];
-  const path: number[] = [];
-  for (let i = 1; i < parts.length; i++) {
-    if (/^\d+$/.test(parts[i])) path.push(parseInt(parts[i], 10));
-    else break;
-  }
-  return path;
-}
 
 /** Parse QB categoryId: qb-{catIdx}-* = category, qb-{catIdx}-{subIdx}-* = subcategory (supports path-only ids). */
 export function parseCategoryId(categoryId: string): {
@@ -42,7 +32,10 @@ export function groupCategoriesWithSubs(
     if (catIdx < 0) continue;
     const isTopLevel = path.length === 1;
     const isDirectChild = path.length === 2;
-    const existing = byCatIdx.get(catIdx) ?? { category: null, subcategories: [] };
+    const existing = byCatIdx.get(catIdx) ?? {
+      category: null,
+      subcategories: [],
+    };
     if (isTopLevel) {
       existing.category = c;
       byCatIdx.set(catIdx, existing);
@@ -56,8 +49,12 @@ export function groupCategoriesWithSubs(
   return order
     .map((k) => byCatIdx.get(k)!)
     .filter(
-      (group): group is { category: BudgetCategoryRow; subcategories: BudgetCategoryRow[] } =>
-        group.category != null,
+      (
+        group,
+      ): group is {
+        category: BudgetCategoryRow;
+        subcategories: BudgetCategoryRow[];
+      } => group.category != null,
     );
 }
 
@@ -67,7 +64,9 @@ export type CategoryTreeNode = {
 };
 
 /** Build a full tree from flat categories (by path prefix). Root nodes have path length 1. */
-export function buildCategoryTree(categories: BudgetCategoryRow[]): CategoryTreeNode[] {
+export function buildCategoryTree(
+  categories: BudgetCategoryRow[],
+): CategoryTreeNode[] {
   const byPath = new Map<string, BudgetCategoryRow>();
   for (const c of categories) {
     const path = parseCategoryPath(c.categoryId);
@@ -118,5 +117,7 @@ export function formatPercent(percent: number | null): string | null {
 
 export function getCategoryColor(categoryId: string): string {
   const { catIdx } = parseCategoryId(categoryId);
-  return catIdx >= 0 ? CHART_COLORS[catIdx % CHART_COLORS.length] : 'var(--muted)';
+  return catIdx >= 0
+    ? CHART_COLORS[catIdx % CHART_COLORS.length]
+    : 'var(--muted)';
 }
