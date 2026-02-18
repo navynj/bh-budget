@@ -3,15 +3,16 @@
 // GET /api/budget?yearMonth=YYYY-MM — list budgets for that month (office/admin) or ensure budget exists for viewer's location.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { canSetBudget } from '@/lib/auth';
+import { parseBody, budgetPostSchema } from '@/lib/api/schemas';
+import { auth, getOfficeOrAdmin } from '@/lib/auth';
 import {
   ensureBudgetForMonth,
   getBudgetsByMonth,
   getBudgetByLocationAndMonth,
 } from '@/lib/budget';
-import { AppError, GENERIC_ERROR_MESSAGE } from '@/lib/errors';
-import { prisma } from '@/lib/prisma';
+import type { QuickBooksApiContext } from '@/lib/budget';
+import { toApiErrorResponse } from '@/lib/core/errors';
+import { prisma } from '@/lib/core/prisma';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 
 export async function GET(request: NextRequest) {
@@ -33,7 +34,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const isOfficeOrAdmin = canSetBudget(session.user.role);
+    const isOfficeOrAdmin = getOfficeOrAdmin(session.user.role);
     const managerLocationId = session.user.locationId ?? undefined;
 
     if (isOfficeOrAdmin) {
@@ -48,6 +49,10 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const context: QuickBooksApiContext = {
+      baseUrl: new URL(request.url).origin,
+      cookie: request.headers.get('cookie'),
+    };
     let budget = await getBudgetByLocationAndMonth(
       managerLocationId,
       yearMonth,
@@ -57,6 +62,7 @@ export async function GET(request: NextRequest) {
         locationId: managerLocationId,
         yearMonth,
         userId: session.user.id,
+        context,
       });
       budget = await getBudgetByLocationAndMonth(managerLocationId, yearMonth);
     }
@@ -68,11 +74,7 @@ export async function GET(request: NextRequest) {
     }
     return NextResponse.json({ ok: true, yearMonth, budget });
   } catch (err: unknown) {
-    console.error('GET /api/budget error:', err);
-    const message =
-      err instanceof AppError ? err.message : GENERIC_ERROR_MESSAGE;
-    const status = err instanceof AppError ? 502 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return toApiErrorResponse(err, 'GET /api/budget error:');
   }
 }
 
@@ -85,44 +87,31 @@ export async function POST(request: NextRequest) {
         { status: 401 },
       );
     }
-    if (!canSetBudget(session.user.role)) {
+    if (!getOfficeOrAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Only office or admin can set budget' },
         { status: 403 },
       );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const yearMonth =
-      typeof body.yearMonth === 'string'
-        ? body.yearMonth
-        : getCurrentYearMonth();
-    if (!isValidYearMonth(yearMonth)) {
-      return NextResponse.json(
-        { error: 'Invalid yearMonth; use YYYY-MM' },
-        { status: 400 },
-      );
-    }
+    const parsed = await parseBody(request, budgetPostSchema);
+    if ('error' in parsed) return parsed.error;
+    const body = parsed.data;
 
-    const locationIds = body.locationIds as string[] | undefined;
-    const locations = locationIds?.length
-      ? await prisma.location.findMany({ where: { id: { in: locationIds } } })
+    const yearMonth = body.yearMonth ?? getCurrentYearMonth();
+    const locations = body.locationIds?.length
+      ? await prisma.location.findMany({ where: { id: { in: body.locationIds } } })
       : await prisma.location.findMany();
     const ids = locations.map((l) => l.id);
 
-    const budgetRate =
-      typeof body.budgetRate === 'number' ? body.budgetRate : undefined;
-    const referencePeriodMonths =
-      typeof body.referencePeriodMonths === 'number'
-        ? body.referencePeriodMonths
-        : undefined;
-    const referenceData = body.referenceData as
-      | {
-          incomeTotal: number;
-          cosByCategory: { categoryId: string; name: string; amount: number }[];
-        }
-      | undefined;
+    const budgetRate = body.budgetRate;
+    const referencePeriodMonths = body.referencePeriodMonths;
+    const referenceData = body.referenceData;
 
+    const context: QuickBooksApiContext = {
+      baseUrl: new URL(request.url).origin,
+      cookie: request.headers.get('cookie'),
+    };
     const results = await Promise.all(
       ids.map((locationId) =>
         ensureBudgetForMonth({
@@ -132,6 +121,7 @@ export async function POST(request: NextRequest) {
           budgetRate,
           referencePeriodMonths,
           referenceData,
+          context,
         }),
       ),
     );
@@ -148,10 +138,6 @@ export async function POST(request: NextRequest) {
       created,
     });
   } catch (err: unknown) {
-    console.error('POST /api/budget error:', err);
-    const message =
-      err instanceof AppError ? err.message : GENERIC_ERROR_MESSAGE;
-    const status = err instanceof AppError ? 502 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return toApiErrorResponse(err, 'POST /api/budget error:');
   }
 }

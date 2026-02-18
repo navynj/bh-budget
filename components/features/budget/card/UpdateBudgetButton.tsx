@@ -1,10 +1,12 @@
 import { Button } from '@/components/ui/button';
-import React from 'react';
 import { Spinner } from '@/components/ui/spinner';
+import React from 'react';
 
 function UpdateBudgetModal({
   locationId,
   yearMonth,
+  currentBudgetRate,
+  currentReferencePeriodMonths,
   onClose,
   onUpdateStart,
   onUpdateSuccess,
@@ -12,13 +14,24 @@ function UpdateBudgetModal({
 }: {
   locationId: string;
   yearMonth: string;
+  currentBudgetRate?: number | null;
+  currentReferencePeriodMonths?: number | null;
   onClose: () => void;
   onUpdateStart: (rate?: number, period?: number) => void;
   onUpdateSuccess: () => void;
   onUpdateError: () => void;
 }) {
-  const [rate, setRate] = React.useState('');
-  const [period, setPeriod] = React.useState('');
+  const [rate, setRate] = React.useState(() =>
+    currentBudgetRate != null && Number.isFinite(currentBudgetRate)
+      ? String(Math.round(currentBudgetRate * 100))
+      : '',
+  );
+  const [period, setPeriod] = React.useState(() =>
+    currentReferencePeriodMonths != null &&
+    Number.isFinite(currentReferencePeriodMonths)
+      ? String(currentReferencePeriodMonths)
+      : '',
+  );
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -29,13 +42,34 @@ function UpdateBudgetModal({
     const periodNum = period ? Number(period) : undefined;
     onUpdateStart(rateNum, periodNum);
     try {
+      let defaultBudgetRate: number | undefined;
+      let defaultReferencePeriodMonths: number | undefined;
+      const settingsRes = await fetch('/api/budget/settings');
+      if (settingsRes.ok) {
+        const { settings } = await settingsRes.json();
+        if (settings) {
+          defaultBudgetRate =
+            typeof settings.budgetRate === 'number'
+              ? settings.budgetRate
+              : undefined;
+          defaultReferencePeriodMonths =
+            typeof settings.referencePeriodMonths === 'number'
+              ? settings.referencePeriodMonths
+              : undefined;
+        }
+      }
+
       const res = await fetch(`/api/budget/${locationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           yearMonth,
-          ...(rateNum != null ? { budgetRate: rateNum } : {}),
-          ...(periodNum != null ? { referencePeriodMonths: periodNum } : {}),
+          ...(rateNum != null
+            ? { budgetRate: rateNum }
+            : { budgetRate: defaultBudgetRate }),
+          ...(periodNum != null
+            ? { referencePeriodMonths: periodNum }
+            : { referencePeriodMonths: defaultReferencePeriodMonths }),
         }),
       });
       const data = await res.json();
@@ -57,9 +91,20 @@ function UpdateBudgetModal({
     }
   };
 
+  const submitOnEnter = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submit();
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-background border-border w-full max-w-sm rounded-lg border p-4 shadow-lg">
+      <form
+        onSubmit={submit}
+        onKeyDown={submitOnEnter}
+        className="bg-background border-border w-full max-w-sm rounded-lg border p-4 shadow-lg"
+      >
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-lg">Update budget</h3>
           {yearMonth && (
@@ -75,7 +120,7 @@ function UpdateBudgetModal({
               min={0}
               max={100}
               step={1}
-              placeholder="e.g. 33"
+              placeholder="e.g. 30"
               className="border-input mt-1 w-full rounded border px-2 py-1"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
@@ -102,11 +147,11 @@ function UpdateBudgetModal({
           <Button variant="outline" onClick={onClose} disabled={loading}>
             Cancel
           </Button>
-          <Button onClick={submit} disabled={loading}>
+          <Button type="submit" disabled={loading}>
             {loading ? <Spinner /> : 'Update'}
           </Button>
         </div>
-      </div>
+      </form>
     </div>
   );
 }
@@ -114,12 +159,16 @@ function UpdateBudgetModal({
 function UpdateBudgetButton({
   locationId,
   yearMonth,
+  currentBudgetRate,
+  currentReferencePeriodMonths,
   onUpdateStart,
   onUpdateSuccess,
   onUpdateError,
 }: {
   locationId: string;
   yearMonth: string;
+  currentBudgetRate?: number | null;
+  currentReferencePeriodMonths?: number | null;
   onUpdateStart: (rate?: number, period?: number) => void;
   onUpdateSuccess: () => void;
   onUpdateError: () => void;
@@ -134,6 +183,8 @@ function UpdateBudgetButton({
         <UpdateBudgetModal
           locationId={locationId}
           yearMonth={yearMonth}
+          currentBudgetRate={currentBudgetRate}
+          currentReferencePeriodMonths={currentReferencePeriodMonths}
           onClose={() => setOpen(false)}
           onUpdateStart={onUpdateStart}
           onUpdateSuccess={onUpdateSuccess}

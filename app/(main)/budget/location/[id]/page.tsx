@@ -7,9 +7,11 @@ import {
   getBudgetByLocationAndMonth,
   mapBudgetToDataType,
 } from '@/lib/budget';
+import type { QuickBooksApiContext } from '@/lib/budget';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/core/prisma';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
+import { headers } from 'next/headers';
 import { notFound, redirect } from 'next/navigation';
 import CategoryBudgetBarChart from '@/components/features/budget/chart/CategoryBudgetBarChart';
 
@@ -45,6 +47,16 @@ const LocationPage = async ({
   // Budget
   // ===============================
   const session = await auth();
+  const baseUrl =
+    (process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL)
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+  const headersList = await headers();
+  const context: QuickBooksApiContext = {
+    baseUrl,
+    cookie: headersList.get('cookie'),
+  };
+
   let budget = await getBudgetByLocationAndMonth(id, yearMonth);
   if (!budget) {
     if (!session?.user?.id) redirect('/auth');
@@ -53,18 +65,24 @@ const LocationPage = async ({
       locationId: id,
       yearMonth,
       userId: session.user.id,
+      context,
     });
 
     budget = mapBudgetToDataType(created);
   }
 
-  const [withCos] = await attachCurrentMonthCosToBudgets([budget], yearMonth);
+  const [withCos] = await attachCurrentMonthCosToBudgets(
+    [budget],
+    yearMonth,
+    context,
+  );
   budget = withCos;
   if (session?.user?.id) {
     const [withRef] = await attachReferenceCosToBudgets(
       [budget],
       yearMonth,
       session.user.id,
+      context,
     );
     budget = withRef;
   }

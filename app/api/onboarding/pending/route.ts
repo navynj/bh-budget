@@ -1,5 +1,5 @@
 import { auth } from '@/lib/auth';
-import { getPendingApprovals } from '@/lib/onboarding';
+import { getPendingApprovals } from '@/lib/users';
 import { UserRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 

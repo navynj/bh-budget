@@ -2,13 +2,14 @@
 // PATCH /api/budget/[locationId] — update existing budget's rate and reference period (office/admin), then recalc.
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { canSetBudget } from '@/lib/auth';
+import { parseBody, budgetPatchSchema } from '@/lib/api/schemas';
+import { auth, getOfficeOrAdmin } from '@/lib/auth';
 import {
   getBudgetByLocationAndMonth,
   ensureBudgetForMonth,
 } from '@/lib/budget';
-import { AppError, GENERIC_ERROR_MESSAGE } from '@/lib/errors';
+import type { QuickBooksApiContext } from '@/lib/budget';
+import { toApiErrorResponse } from '@/lib/core/errors';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 
 export async function GET(
@@ -32,7 +33,7 @@ export async function GET(
       );
     }
 
-    const isOfficeOrAdmin = canSetBudget(session.user.role);
+    const isOfficeOrAdmin = getOfficeOrAdmin(session.user.role);
     const managerLocationId = session.user.locationId ?? undefined;
     if (!isOfficeOrAdmin && managerLocationId !== locationId) {
       return NextResponse.json(
@@ -50,12 +51,17 @@ export async function GET(
       );
     }
 
+    const context: QuickBooksApiContext = {
+      baseUrl: new URL(request.url).origin,
+      cookie: request.headers.get('cookie'),
+    };
     let budget = await getBudgetByLocationAndMonth(locationId, yearMonth);
     if (!budget && session.user.id) {
       await ensureBudgetForMonth({
         locationId,
         yearMonth,
         userId: session.user.id,
+        context,
       });
       budget = await getBudgetByLocationAndMonth(locationId, yearMonth);
     }
@@ -68,11 +74,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, yearMonth, budget });
   } catch (err: unknown) {
-    console.error('GET /api/budget/[locationId] error:', err);
-    const message =
-      err instanceof AppError ? err.message : GENERIC_ERROR_MESSAGE;
-    const status = err instanceof AppError ? 502 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return toApiErrorResponse(err, 'GET /api/budget/[locationId] error:');
   }
 }
 
@@ -88,7 +90,7 @@ export async function PATCH(
         { status: 401 },
       );
     }
-    if (!canSetBudget(session.user.role)) {
+    if (!getOfficeOrAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Only office or admin can update budget' },
         { status: 403 },
@@ -103,11 +105,11 @@ export async function PATCH(
       );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const yearMonth =
-      typeof body.yearMonth === 'string'
-        ? body.yearMonth
-        : getCurrentYearMonth();
+    const parsed = await parseBody(request, budgetPatchSchema);
+    if ('error' in parsed) return parsed.error;
+    const body = parsed.data;
+
+    const yearMonth = body.yearMonth ?? getCurrentYearMonth();
     if (!isValidYearMonth(yearMonth)) {
       return NextResponse.json(
         { error: 'Invalid yearMonth; use YYYY-MM' },
@@ -115,19 +117,14 @@ export async function PATCH(
       );
     }
 
-    const budgetRate =
-      typeof body.budgetRate === 'number' ? body.budgetRate : undefined;
-    const referencePeriodMonths =
-      typeof body.referencePeriodMonths === 'number'
-        ? body.referencePeriodMonths
-        : undefined;
-    const referenceData = body.referenceData as
-      | {
-          incomeTotal: number;
-          cosByCategory: { categoryId: string; name: string; amount: number }[];
-        }
-      | undefined;
+    const budgetRate = body.budgetRate;
+    const referencePeriodMonths = body.referencePeriodMonths;
+    const referenceData = body.referenceData;
 
+    const context: QuickBooksApiContext = {
+      baseUrl: new URL(request.url).origin,
+      cookie: request.headers.get('cookie'),
+    };
     await ensureBudgetForMonth({
       locationId,
       yearMonth,
@@ -135,6 +132,7 @@ export async function PATCH(
       budgetRate,
       referencePeriodMonths,
       referenceData,
+      context,
     });
     const budget = await getBudgetByLocationAndMonth(locationId, yearMonth);
     if (!budget) {
@@ -146,10 +144,6 @@ export async function PATCH(
 
     return NextResponse.json({ ok: true, yearMonth, budget });
   } catch (err: unknown) {
-    console.error('PATCH /api/budget/[locationId] error:', err);
-    const message =
-      err instanceof AppError ? err.message : GENERIC_ERROR_MESSAGE;
-    const status = err instanceof AppError ? 502 : 500;
-    return NextResponse.json({ error: message }, { status });
+    return toApiErrorResponse(err, 'PATCH /api/budget/[locationId] error:');
   }
 }

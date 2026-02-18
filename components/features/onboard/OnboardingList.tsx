@@ -5,7 +5,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import type { PendingUser } from '@/lib/onboarding';
+import type { PendingUser } from '@/lib/users';
 import { PendingApprovalItem } from './PendingApprovalItem';
 
 interface OnboardingListProps {
@@ -18,7 +18,7 @@ const OnboardingList = ({ canApprove, pending }: OnboardingListProps) => {
 
   return (
     pending.length !== 0 && (
-      <Card className="bg-yellow-50 border-yellow-300 flex flex-row justify-between gap-4">
+      <Card className="bg-yellow-50 border-yellow-300 flex flex-col gap-4 justify-between gap-4">
         <CardHeader className="flex-1 grid-rows-[auto_1fr]">
           <CardTitle>Pending approvals</CardTitle>
           <CardDescription>
@@ -27,13 +27,9 @@ const OnboardingList = ({ canApprove, pending }: OnboardingListProps) => {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ul className="divide-y divide-border">
+          <ul className="divide-y divide-border gap-2 flex flex-wrap">
             {pending.map((user) => (
-              <PendingApprovalItem
-                key={user.id}
-                user={user}
-                className="bg-white"
-              />
+              <PendingApprovalItem key={user.id} user={user} />
             ))}
           </ul>
         </CardContent>

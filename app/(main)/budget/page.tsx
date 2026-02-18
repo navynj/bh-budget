@@ -1,14 +1,16 @@
 import BudgetCardList from '@/components/features/budget/card/BudgetCardList';
-import { auth, canSetBudget } from '@/lib/auth';
+import { auth, getOfficeOrAdmin } from '@/lib/auth';
 import {
   attachCurrentMonthCosToBudgets,
   attachReferenceCosToBudgets,
   ensureBudgetsForMonth,
   getBudgetsByMonth,
 } from '@/lib/budget';
-import { AppError, GENERIC_ERROR_MESSAGE } from '@/lib/errors';
+import { AppError, GENERIC_ERROR_MESSAGE } from '@/lib/core/errors';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
-import { BudgetDataType } from '@/types/budget';
+import type { QuickBooksApiContext } from '@/lib/budget';
+import type { BudgetDataType } from '@/lib/budget';
+import { headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 type Props = { searchParams: Promise<{ yearMonth?: string }> };
@@ -32,19 +34,29 @@ export default async function DashboardPage({ searchParams }: Props) {
   }
 
   const managerLocationId = session?.user?.locationId ?? undefined;
-  if (!canSetBudget(session?.user?.role) && managerLocationId) {
+  if (!getOfficeOrAdmin(session?.user?.role) && managerLocationId) {
     redirect(`/budget/location/${managerLocationId}?yearMonth=${yearMonth}`);
   }
+
+  const baseUrl =
+    (process.env.NEXT_PUBLIC_APP_URL ?? process.env.VERCEL_URL)
+      ? `https://${process.env.VERCEL_URL}`
+      : 'http://localhost:3000';
+  const headersList = await headers();
+  const context: QuickBooksApiContext = {
+    baseUrl,
+    cookie: headersList.get('cookie'),
+  };
 
   // ===============================
   // Budget
   // ===============================
-  const isOfficeOrAdmin = canSetBudget(session?.user.role);
+  const isOfficeOrAdmin = getOfficeOrAdmin(session?.user.role);
 
   let budgetError: string | null = null;
 
   try {
-    await ensureBudgetsForMonth(yearMonth, session.user.id);
+    await ensureBudgetsForMonth(yearMonth, session.user.id, context);
   } catch (e) {
     console.error(e);
     budgetError = e instanceof AppError ? e.message : GENERIC_ERROR_MESSAGE;
@@ -55,11 +67,16 @@ export default async function DashboardPage({ searchParams }: Props) {
   let budgetsList: BudgetDataType[] = [];
 
   budgetsList = await getBudgetsByMonth(yearMonth);
-  budgetsList = await attachCurrentMonthCosToBudgets(budgetsList, yearMonth);
+  budgetsList = await attachCurrentMonthCosToBudgets(
+    budgetsList,
+    yearMonth,
+    context,
+  );
   budgetsList = await attachReferenceCosToBudgets(
     budgetsList,
     yearMonth,
     session.user.id,
+    context,
   );
 
   return (

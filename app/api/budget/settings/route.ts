@@ -2,16 +2,20 @@
 // PATCH /api/budget/settings — update default budget rate and reference period (office/admin only).
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
-import { canSetBudget } from '@/lib/auth';
+import { parseBody, budgetSettingsPatchSchema } from '@/lib/api/schemas';
+import { auth, getOfficeOrAdmin } from '@/lib/auth';
 import { getOrCreateBudgetSettings } from '@/lib/budget';
-import { prisma } from '@/lib/prisma';
+import { toApiErrorResponse } from '@/lib/core/errors';
+import { prisma } from '@/lib/core/prisma';
 
 export async function GET() {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 },
+      );
     }
 
     const settings = await getOrCreateBudgetSettings();
@@ -26,9 +30,7 @@ export async function GET() {
       },
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to get budget settings';
-    console.error('GET /api/budget/settings error:', message);
-    return NextResponse.json({ error: String(message) }, { status: 500 });
+    return toApiErrorResponse(err, 'GET /api/budget/settings error:');
   }
 }
 
@@ -36,51 +38,31 @@ export async function PATCH(request: NextRequest) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 },
+      );
     }
-    if (!canSetBudget(session.user.role)) {
+    if (!getOfficeOrAdmin(session.user.role)) {
       return NextResponse.json(
         { error: 'Only office or admin can update budget settings' },
         { status: 403 },
       );
     }
 
-    const body = await request.json().catch(() => ({}));
-    const budgetRate =
-      typeof body.budgetRate === 'number' ? body.budgetRate : undefined;
-    const referencePeriodMonths =
-      typeof body.referencePeriodMonths === 'number'
-        ? body.referencePeriodMonths
-        : undefined;
-
-    if (budgetRate === undefined && referencePeriodMonths === undefined) {
-      return NextResponse.json(
-        { error: 'Provide budgetRate and/or referencePeriodMonths' },
-        { status: 400 },
-      );
-    }
+    const parsed = await parseBody(request, budgetSettingsPatchSchema);
+    if ('error' in parsed) return parsed.error;
+    const { budgetRate, referencePeriodMonths } = parsed.data;
 
     const existing = await getOrCreateBudgetSettings();
-    const data: { budgetRate?: number; referencePeriodMonths?: number; updatedById?: string } = {};
-    if (budgetRate !== undefined) {
-      if (budgetRate < 0 || budgetRate > 1) {
-        return NextResponse.json(
-          { error: 'budgetRate must be between 0 and 1 (e.g. 0.33 for 33%)' },
-          { status: 400 },
-        );
-      }
-      data.budgetRate = budgetRate;
-    }
-    if (referencePeriodMonths !== undefined) {
-      if (referencePeriodMonths < 1 || referencePeriodMonths > 24) {
-        return NextResponse.json(
-          { error: 'referencePeriodMonths must be between 1 and 24' },
-          { status: 400 },
-        );
-      }
+    const data: {
+      budgetRate?: number;
+      referencePeriodMonths?: number;
+      updatedById?: string;
+    } = { updatedById: session.user.id };
+    if (budgetRate !== undefined) data.budgetRate = budgetRate;
+    if (referencePeriodMonths !== undefined)
       data.referencePeriodMonths = referencePeriodMonths;
-    }
-    data.updatedById = session.user.id;
 
     const updated = await prisma.budgetSettings.update({
       where: { id: existing.id },
@@ -98,8 +80,6 @@ export async function PATCH(request: NextRequest) {
       },
     });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : 'Failed to update budget settings';
-    console.error('PATCH /api/budget/settings error:', message);
-    return NextResponse.json({ error: String(message) }, { status: 500 });
+    return toApiErrorResponse(err, 'PATCH /api/budget/settings error:');
   }
 }

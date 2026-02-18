@@ -19,7 +19,7 @@ const ReconnectContent = ({
           className="w-full max-w-3xs"
         >
           <a
-            href={`/api/quickbook/connect?locationId=${encodeURIComponent(locationId)}`}
+            href={`/api/quickbooks/connect?locationId=${encodeURIComponent(locationId)}`}
           >
             Reconnect QuickBooks
           </a>

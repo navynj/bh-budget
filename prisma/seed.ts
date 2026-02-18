@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { prisma } from '../lib/prisma';
+import { prisma } from '../lib/core/prisma';
 
 async function main() {
   const locations = [

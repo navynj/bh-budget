@@ -18,10 +18,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: 'BH Budget',
-    template: '%s | BH Budget',
+    default: 'BH Dashboard',
+    template: '%s | BH Dashboard',
   },
-  description: 'Budget charts and overview',
+  description: 'BH dashboard',
 };
 
 export default async function RootLayout({

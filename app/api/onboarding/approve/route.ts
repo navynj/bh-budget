@@ -1,5 +1,6 @@
+import { parseBody, onboardingApprovePostSchema } from '@/lib/api/schemas';
 import { auth } from '@/lib/auth';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/lib/core/prisma';
 import { UserRole } from '@prisma/client';
 import { NextResponse } from 'next/server';
 
@@ -16,14 +17,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
   }
 
-  const body = await request.json();
-  const userId = typeof body.userId === 'string' ? body.userId.trim() : '';
-  if (!userId) {
-    return NextResponse.json(
-      { error: 'userId is required' },
-      { status: 400 }
-    );
-  }
+  const parsed = await parseBody(request, onboardingApprovePostSchema);
+  if ('error' in parsed) return parsed.error;
+  const { userId } = parsed.data;
 
   const target = await prisma.user.findUnique({
     where: { id: userId },

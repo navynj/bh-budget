@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type {
   BudgetCategoryRow,
   BudgetWithLocationAndCategories,
-} from '@/types/budget';
+} from '@/lib/budget';
 import { usePathname, useRouter } from 'next/navigation';
 import React, { useMemo } from 'react';
 import UpdateBudgetButton from './UpdateBudgetButton';
@@ -126,6 +126,12 @@ function BudgetCard({
           <UpdateBudgetButton
             locationId={budget.locationId}
             yearMonth={yearMonth}
+            currentBudgetRate={
+              typeof budget.budgetRateUsed === 'number'
+                ? budget.budgetRateUsed
+                : null
+            }
+            currentReferencePeriodMonths={budget.referencePeriodMonthsUsed}
             onUpdateStart={onUpdateStart}
             onUpdateSuccess={onUpdateSuccess}
             onUpdateError={onUpdateError}

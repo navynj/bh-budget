@@ -1,4 +1,4 @@
-// Prisma schema for bh-budget (Supabase PostgreSQL)
+// Prisma schema for bh-dashboard (Supabase PostgreSQL)
 // Auth.js models + app models (Location, User role/location/approval)
 
 generator client {
@@ -53,15 +53,17 @@ model VerificationToken {
 
 // ---------- App: Locations (HQ, CC, PM, extensible) ----------
 model Location {
-  id               String   @id @default(cuid())
-  code             String   @unique // e.g. "HQ", "CC", "PM"
+  id               String    @id @default(cuid())
+  code             String    @unique // e.g. "HQ", "CC", "PM"
   name             String
-  realmId          String   @map("realm_id")
-  accessToken      String   @map("access_token")
-  refreshToken     String   @map("refresh_token")
-  expiresAt        DateTime @map("expires_at")
-  refreshExpiresAt DateTime @map("refresh_expires_at")
-  createdAt        DateTime @default(now()) @map("created_at")
+  realmId          String    @map("realm_id")
+  classId          String?   @map("class_id")
+  accessToken      String    @map("access_token")
+  refreshToken     String    @map("refresh_token")
+  expiresAt        DateTime  @map("expires_at")
+  refreshExpiresAt DateTime  @map("refresh_expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  startDate        DateTime? @map("start_date")
 
   users   User[]
   budgets Budget[]
@@ -70,10 +72,10 @@ model Location {
 }
 
 // ---------- Budget: default settings (office/admin) ----------
-// Single row: default budget rate (e.g. 0.33 = 33% of reference income), reference period in months (e.g. 6).
+// Single row: default budget rate (e.g. 0.3 = 30% of reference income), reference period in months (e.g. 6).
 model BudgetSettings {
   id                    String   @id @default(cuid())
-  budgetRate            Decimal  @map("budget_rate") @db.Decimal(5, 4) // e.g. 0.33
+  budgetRate            Decimal  @map("budget_rate") @db.Decimal(5, 4) // e.g. 0.3
   referencePeriodMonths Int      @map("reference_period_months") // e.g. 6
   updatedAt             DateTime @updatedAt @map("updated_at")
   updatedById           String?  @map("updated_by_id")

@@ -57,9 +57,17 @@ export function BudgetSettingsForm({
     }
   };
 
+  const submitOnEnter = (e: React.KeyboardEvent<HTMLFormElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submit(e as unknown as React.FormEvent);
+    }
+  };
+
   const formContent = (
     <form
       onSubmit={submit}
+      onKeyDown={submitOnEnter}
       className="flex flex-wrap items-end justify-center gap-4"
     >
       <div className="space-y-2 w-7/15">

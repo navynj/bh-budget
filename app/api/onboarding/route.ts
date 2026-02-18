@@ -1,49 +1,25 @@
-import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
-import { UserRole, UserStatus } from "@prisma/client";
-import { NextResponse } from "next/server";
-
-const VALID_ROLES: UserRole[] = ["admin", "office", "manager"];
+import { parseBody, onboardingPostSchema } from '@/lib/api/schemas';
+import { auth } from '@/lib/auth';
+import { prisma } from '@/lib/core/prisma';
+import { UserStatus } from '@prisma/client';
+import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const body = await request.json();
-  const name = typeof body.name === "string" ? body.name.trim() : "";
-  const role = body.role as UserRole | undefined;
-  const locationId = typeof body.locationId === "string" ? body.locationId : undefined;
+  const parsed = await parseBody(request, onboardingPostSchema);
+  if ('error' in parsed) return parsed.error;
+  const { name, role, locationId } = parsed.data;
 
-  if (!name || name.length < 1) {
-    return NextResponse.json(
-      { error: "Name is required" },
-      { status: 400 }
-    );
-  }
-  if (!role || !VALID_ROLES.includes(role)) {
-    return NextResponse.json(
-      { error: "Valid role is required (admin, office, manager)" },
-      { status: 400 }
-    );
-  }
-
-  if (role === "manager") {
-    if (!locationId) {
-      return NextResponse.json(
-        { error: "Location is required for manager role" },
-        { status: 400 }
-      );
-    }
+  if (role === 'manager' && locationId) {
     const location = await prisma.location.findUnique({
       where: { id: locationId },
     });
     if (!location) {
-      return NextResponse.json(
-        { error: "Invalid location" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid location' }, { status: 400 });
     }
   }
 
@@ -57,7 +33,7 @@ export async function POST(request: Request) {
       name,
       role,
       status,
-      locationId: role === "manager" ? locationId : null,
+      locationId: role === 'manager' ? locationId ?? null : null,
     },
   });
 

@@ -3,7 +3,7 @@
 import { Button } from '@/components/ui/button';
 import { Spinner } from '@/components/ui/spinner';
 import { api } from '@/lib/api';
-import type { PendingUser } from '@/lib/onboarding';
+import type { PendingUser } from '@/lib/users';
 import { cn } from '@/lib/utils';
 import { ClassName } from '@/types/className';
 import { useRouter } from 'next/navigation';
