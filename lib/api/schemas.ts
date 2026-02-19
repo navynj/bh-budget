@@ -62,6 +62,26 @@ export const budgetPatchSchema = z.object({
     .optional(),
 });
 
+/** POST /api/budget/bulk — bulk update budgets in a year-month range */
+export const budgetBulkPatchSchema = z.object({
+  fromYearMonth: yearMonthSchema,
+  toYearMonth: yearMonthSchema,
+  budgetRate: z
+    .number()
+    .min(0)
+    .max(1, 'Budget rate must be between 0 and 1 (e.g. 0.33 for 33%)')
+    .optional(),
+  referencePeriodMonths: z
+    .number()
+    .int()
+    .min(1)
+    .max(24, 'Reference period must be between 1 and 24 months')
+    .optional(),
+}).refine(
+  (data) => data.fromYearMonth <= data.toYearMonth,
+  { message: 'From month must be before or equal to To month', path: ['toYearMonth'] },
+);
+
 /** PATCH /api/budget/settings */
 export const budgetSettingsPatchSchema = z
   .object({
@@ -97,6 +117,7 @@ export type OnboardingPostBody = z.infer<typeof onboardingPostSchema>;
 export type OnboardingApprovePostBody = z.infer<typeof onboardingApprovePostSchema>;
 export type BudgetPostBody = z.infer<typeof budgetPostSchema>;
 export type BudgetPatchBody = z.infer<typeof budgetPatchSchema>;
+export type BudgetBulkPatchBody = z.infer<typeof budgetBulkPatchSchema>;
 export type BudgetSettingsPatchBody = z.infer<typeof budgetSettingsPatchSchema>;
 export type UserPatchBody = z.infer<typeof userPatchSchema>;
 export type LocationPatchBody = z.infer<typeof locationPatchSchema>;

@@ -14,6 +14,7 @@ import { type ColumnDef, type Row } from '@tanstack/react-table';
 import { Check, Pencil } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
 
 type UserRole = 'admin' | 'office' | 'manager' | null;
 type UserStatus =
@@ -90,7 +91,11 @@ export default function UsersPage() {
   const updateUser = useCallback(
     async (row: UserRow, field: string, value: unknown) => {
       try {
-        await patchUser(row.id, { [field]: value });
+        const body: Record<string, unknown> = { [field]: value };
+        if (field === 'role') {
+          body.locationId = null;
+        }
+        await patchUser(row.id, body);
         await fetchUsers();
         toast.success('Updated');
       } catch (e) {
@@ -173,6 +178,7 @@ export default function UsersPage() {
         const hasLocation = row.original.locationId != null;
         // Office/admin with location: enable so they can set to none only. Office/admin without: keep disabled. Manager: full list.
         const onlyAllowNone = isOfficeOrAdmin && hasLocation;
+        const shouldSetLocation = !isOfficeOrAdmin && !hasLocation;
         const disabled = isOfficeOrAdmin && !hasLocation;
         return (
           <Select
@@ -186,11 +192,23 @@ export default function UsersPage() {
             }
             disabled={disabled}
           >
-            <SelectTrigger className="h-8 w-[160px] border-0 bg-transparent shadow-none">
+            <SelectTrigger
+              className={cn(
+                'h-8 w-[160px] border-0 bg-transparent shadow-none',
+                (onlyAllowNone || shouldSetLocation) &&
+                  'border-1 border-yellow-500 ring-3 ring-yellow-500/20',
+              )}
+            >
               <SelectValue placeholder="Location" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_LOCATION_VALUE}>—</SelectItem>
+              {!shouldSetLocation && (
+                <SelectItem value={NO_LOCATION_VALUE}>
+                  {onlyAllowNone
+                    ? 'Select this option to remove location'
+                    : '—'}
+                </SelectItem>
+              )}
               {!onlyAllowNone &&
                 locations.map((loc) => (
                   <SelectItem key={loc.id} value={loc.id}>

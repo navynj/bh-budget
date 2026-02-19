@@ -1,3 +1,4 @@
+import { BudgetBulkEditDialog } from '@/components/features/budget/BudgetBulkEditDialog';
 import { BudgetSettingsDialog } from '@/components/features/budget/BudgetSettingsDialog';
 import MonthNav from '@/components/layout/MonthNav';
 import { auth, getOfficeOrAdmin } from '@/lib/auth';
@@ -22,12 +23,15 @@ const BudgetLayout = async ({ children }: { children: React.ReactNode }) => {
           <MonthNav currentYearMonth={yearMonth} />
         </Suspense>
         {isOfficeOrAdmin && budgetSettings && (
-          <BudgetSettingsDialog
-            initialBudgetRate={Number(budgetSettings.budgetRate)}
-            initialReferencePeriodMonths={
-              budgetSettings.referencePeriodMonths
-            }
-          />
+          <>
+            <BudgetBulkEditDialog />
+            <BudgetSettingsDialog
+              initialBudgetRate={Number(budgetSettings.budgetRate)}
+              initialReferencePeriodMonths={
+                budgetSettings.referencePeriodMonths
+              }
+            />
+          </>
         )}
       </div>
       {children}

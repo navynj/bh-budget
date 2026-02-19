@@ -28,7 +28,7 @@ export function BudgetSettingsDialog({
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogTitle className="sr-only">Budget settings</DialogTitle>
+        <DialogTitle>Default Budget Settings</DialogTitle>
         <BudgetSettingsForm
           initialBudgetRate={initialBudgetRate}
           initialReferencePeriodMonths={initialReferencePeriodMonths}

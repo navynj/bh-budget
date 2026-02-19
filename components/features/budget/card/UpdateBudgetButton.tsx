@@ -1,4 +1,6 @@
 import { Button } from '@/components/ui/button';
+import { Field, FieldError, FieldLabel } from '@/components/ui/field';
+import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/spinner';
 import React from 'react';
 
@@ -91,6 +93,11 @@ function UpdateBudgetModal({
     }
   };
 
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    submit();
+  };
+
   const submitOnEnter = (e: React.KeyboardEvent<HTMLFormElement>) => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -101,7 +108,7 @@ function UpdateBudgetModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <form
-        onSubmit={submit}
+        onSubmit={handleSubmit}
         onKeyDown={submitOnEnter}
         className="bg-background border-border w-full max-w-sm rounded-lg border p-4 shadow-lg"
       >
@@ -111,37 +118,45 @@ function UpdateBudgetModal({
             <p className="text-muted-foreground text-sm">for {yearMonth}</p>
           )}
         </div>
-        <div className="mt-3 space-y-2">
-          <label className="text-sm">
-            Budget rate{' '}
-            <span className="text-muted-foreground text-xs">(% of income)</span>
-            <input
+        <div className="mt-3 space-y-4">
+          <Field>
+            <FieldLabel htmlFor="update-budget-rate">
+              Budget rate{' '}
+              <span className="text-muted-foreground text-xs font-normal">
+                (% of income)
+              </span>
+            </FieldLabel>
+            <Input
+              id="update-budget-rate"
               type="number"
               min={0}
               max={100}
               step={1}
               placeholder="e.g. 30"
-              className="border-input mt-1 w-full rounded border px-2 py-1"
               value={rate}
               onChange={(e) => setRate(e.target.value)}
             />
-          </label>
-          <label className="text-sm">
-            Reference period{' '}
-            <span className="text-muted-foreground text-xs">(months)</span>
-            <input
+          </Field>
+          <Field>
+            <FieldLabel htmlFor="update-budget-period">
+              Reference period{' '}
+              <span className="text-muted-foreground text-xs font-normal">
+                (months)
+              </span>
+            </FieldLabel>
+            <Input
+              id="update-budget-period"
               type="number"
               min={1}
               max={24}
               placeholder="e.g. 6"
-              className="border-input mt-1 w-full rounded border px-2 py-1"
               value={period}
               onChange={(e) => setPeriod(e.target.value)}
             />
-          </label>
+          </Field>
         </div>
         {error && (
-          <p className="text-destructive mt-4 text-sm text-right">{error}</p>
+          <FieldError className="mt-4 text-right">{error}</FieldError>
         )}
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="outline" onClick={onClose} disabled={loading}>

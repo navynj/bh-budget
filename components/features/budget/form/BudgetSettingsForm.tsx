@@ -9,8 +9,8 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import { toast } from 'sonner';
 
@@ -70,8 +70,8 @@ export function BudgetSettingsForm({
       onKeyDown={submitOnEnter}
       className="flex flex-wrap items-end justify-center gap-4"
     >
-      <div className="space-y-2 w-7/15">
-        <Label htmlFor="budget-rate">Budget rate (%)</Label>
+      <Field className="w-7/15">
+        <FieldLabel htmlFor="budget-rate">Budget rate (%)</FieldLabel>
         <Input
           id="budget-rate"
           type="number"
@@ -83,9 +83,9 @@ export function BudgetSettingsForm({
           onChange={(e) => setRate(e.target.value)}
           className="w-24 w-full"
         />
-      </div>
-      <div className="space-y-2 w-7/15">
-        <Label htmlFor="ref-period">Reference period (months)</Label>
+      </Field>
+      <Field className="w-7/15">
+        <FieldLabel htmlFor="ref-period">Reference period (months)</FieldLabel>
         <Input
           id="ref-period"
           type="number"
@@ -96,7 +96,7 @@ export function BudgetSettingsForm({
           onChange={(e) => setPeriod(e.target.value)}
           className="w-24 w-full"
         />
-      </div>
+      </Field>
       <Button type="submit" disabled={loading} className="w-47/48">
         {loading ? <Spinner /> : 'Update default settings'}
       </Button>

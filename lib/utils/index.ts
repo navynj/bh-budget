@@ -7,6 +7,7 @@ export {
   getCurrentYearMonth,
   isValidYearMonth,
   isBeforeYearMonth,
+  listYearMonthsInRange,
 } from './date';
 export { formatCurrency } from './format';
 export {

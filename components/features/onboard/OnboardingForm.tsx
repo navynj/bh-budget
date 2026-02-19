@@ -1,7 +1,5 @@
 'use client';
 
-import FormField from '@/components/common/FormField';
-import FormSelect from '@/components/common/FormSelect';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -11,7 +9,22 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Spinner } from '@/components/ui/spinner';
 import { ROLES } from '@/constants/role';
 import { api } from '@/lib/api';
@@ -20,7 +33,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import type { Location } from '@prisma/client';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
-import { toast } from 'sonner';
 import { z } from 'zod';
 
 const onboardingSchema = z
@@ -49,14 +61,7 @@ export function OnboardingForm({
   className,
 }: OnboardingFormProps) {
   const router = useRouter();
-  const {
-    register,
-    control,
-    handleSubmit,
-    setValue,
-    formState: { errors, isSubmitting },
-    watch,
-  } = useForm<OnboardingFormValues>({
+  const form = useForm<OnboardingFormValues>({
     resolver: zodResolver(onboardingSchema),
     defaultValues: {
       name: userName ?? '',
@@ -64,7 +69,13 @@ export function OnboardingForm({
       locationId: '',
     },
   });
-
+  const {
+    control,
+    handleSubmit,
+    setValue,
+    formState: { isSubmitting },
+    watch,
+  } = form;
   const role = watch('role');
 
   const submit = async (data: OnboardingFormValues) => {
@@ -84,69 +95,105 @@ export function OnboardingForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(submit)} className={className}>
-      <Card>
-        <CardHeader>
-          <CardTitle>Profile</CardTitle>
-          <CardDescription>
-            Office and manager roles require approval from an admin.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Name */}
-          <FormField
-            label="Display name"
-            htmlFor="name"
-            error={errors.name?.message}
-          >
-            <Input id="name" {...register('name')} placeholder="Your name" />
-          </FormField>
-
-          {/* Role */}
-          <FormField label="Role" htmlFor="role" error={errors.role?.message}>
-            <FormSelect
-              name="role"
-              control={control}
-              options={ROLES}
-              placeholder="Select role"
-              onValueChange={(v) =>
-                v !== 'manager' && setValue('locationId', '')
-              }
-            />
-          </FormField>
-
-          {/* Location (only for managers) */}
-          {role === 'manager' && (
+    <Form {...form}>
+      <form onSubmit={handleSubmit(submit)} className={className}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile</CardTitle>
+            <CardDescription>
+              Office and manager roles require approval from an admin.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
             <FormField
-              label="Location"
-              htmlFor="location"
-              error={errors.locationId?.message}
-            >
-              <FormSelect
-                name="locationId"
+              control={control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Display name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Your name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={control}
+              name="role"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Role</FormLabel>
+                  <FormControl>
+                    <Select
+                      value={field.value ?? ''}
+                      onValueChange={(v) => {
+                        field.onChange(v);
+                        if (v !== 'manager') setValue('locationId', '');
+                      }}
+                    >
+                      <SelectTrigger className="w-full m-0">
+                        <SelectValue placeholder="Select role" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {ROLES.map((opt) => (
+                          <SelectItem key={opt.value} value={opt.value}>
+                            {opt.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {role === 'manager' && (
+              <FormField
                 control={control}
-                options={locations.map((loc) => ({
-                  value: loc.id,
-                  label: `${loc.code} – ${loc.name}`,
-                }))}
-                placeholder="Select location"
+                name="locationId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Location</FormLabel>
+                    <FormControl>
+                      <Select
+                        value={field.value ?? ''}
+                        onValueChange={field.onChange}
+                      >
+                        <SelectTrigger className="w-full m-0">
+                          <SelectValue placeholder="Select location" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {locations.map((loc) => (
+                            <SelectItem key={loc.id} value={loc.id}>
+                              {loc.code} – {loc.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
               />
-            </FormField>
-          )}
-        </CardContent>
-        <CardFooter>
-          <Button type="submit" className="w-full" disabled={isSubmitting}>
-            {isSubmitting ? (
-              <>
-                <Spinner />
-                <span className="sr-only">Saving…</span>
-              </>
-            ) : (
-              'Continue'
             )}
-          </Button>
-        </CardFooter>
-      </Card>
-    </form>
+          </CardContent>
+          <CardFooter>
+            <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <>
+                  <Spinner />
+                  <span className="sr-only">Saving…</span>
+                </>
+              ) : (
+                'Continue'
+              )}
+            </Button>
+          </CardFooter>
+        </Card>
+      </form>
+    </Form>
   );
 }

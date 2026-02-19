@@ -42,3 +42,25 @@ export function isValidYearMonth(yearMonth: string): boolean {
   const yearMonthRegex = /^\d{4}-(0[1-9]|1[0-2])$/;
   return yearMonthRegex.test(yearMonth);
 }
+
+/** List all YYYY-MM in [fromYearMonth, toYearMonth] inclusive. from must be <= to. */
+export function listYearMonthsInRange(
+  fromYearMonth: string,
+  toYearMonth: string,
+): string[] {
+  if (!isValidYearMonth(fromYearMonth) || !isValidYearMonth(toYearMonth)) {
+    return [];
+  }
+  if (isBeforeYearMonth(toYearMonth, fromYearMonth)) {
+    return [];
+  }
+  const out: string[] = [];
+  let current = fromYearMonth;
+  while (current <= toYearMonth) {
+    out.push(current);
+    if (current === toYearMonth) break;
+    const { year, month } = parseYearMonth(current);
+    current = nextMonth(year, month);
+  }
+  return out;
+}
