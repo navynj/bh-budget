@@ -24,9 +24,9 @@ const HeaderNav = ({
           Reports
         </NavItem>
       </div>
-      <div className="flex items-center gap-2">
+      {/* <div className="flex items-center gap-2">
         {isOfficeOrAdmin && <NavItem href="/users">Users</NavItem>}
-      </div>
+      </div> */}
     </nav>
   );
 };

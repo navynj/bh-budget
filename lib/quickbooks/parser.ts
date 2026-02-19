@@ -45,6 +45,17 @@ function findSection(
   return undefined;
 }
 
+/**
+ * For multi-period P&L reports, QuickBooks returns one column per period plus a "Total" column.
+ * We use the Total column (last) so income/COS reflect the full requested range; otherwise use the single value column (index 1).
+ * Blank/empty cells are treated as 0 via parseAmount.
+ */
+function getValueColumnIndex(colData: { value?: unknown }[] | undefined): number {
+  const arr = Array.isArray(colData) ? colData : [];
+  if (arr.length > 2) return arr.length - 1; // Total column
+  return 1; // Single period value
+}
+
 function rowTotal(row: unknown): number {
   const r = row as {
     Summary?: { ColData?: { value?: unknown }[] };
@@ -52,11 +63,11 @@ function rowTotal(row: unknown): number {
   };
   const summary = r?.Summary?.ColData;
   const colData = r?.ColData;
-  if (Array.isArray(summary) && summary.length >= 2) {
-    return parseAmount(summary[1]?.value);
-  }
-  if (Array.isArray(colData) && colData.length >= 2) {
-    return parseAmount(colData[1]?.value);
+  const fromSummary = Array.isArray(summary) && summary.length >= 2;
+  const data = fromSummary ? summary : colData;
+  const idx = getValueColumnIndex(data);
+  if (Array.isArray(data) && data.length > idx) {
+    return parseAmount(data[idx]?.value);
   }
   return 0;
 }
@@ -80,6 +91,12 @@ function categoryOrLineName(row: PlRow): string {
   return lineName(row);
 }
 
+/** Extract COS number from names like "COS1- Supplier BH", "COS6 - Coffee beans, Teas". Used so categoryId is stable when QB omits rows (e.g. COS5 with no activity). */
+function cosNumberFromName(name: string): number | null {
+  const m = name.trim().match(/^COS\s*(\d+)/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+
 function sectionCosLineItemsRecurse(
   row: PlRow,
   path: number[],
@@ -88,7 +105,11 @@ function sectionCosLineItemsRecurse(
   const name = categoryOrLineName(row);
   if (!name) return;
   if (!row?.Header && /^cost of (goods )?sold$/i.test(name.trim())) return;
-  const id = `qb-${path.join('-')}`;
+  const cosNum = cosNumberFromName(name);
+  const id =
+    cosNum != null && path.length === 1
+      ? `qb-${cosNum - 1}`
+      : `qb-${path.join('-')}`;
   out.push({ id, name, amount: rowTotal(row) });
   const subRows = row?.Rows?.Row;
   if (!Array.isArray(subRows) || subRows.length === 0) return;

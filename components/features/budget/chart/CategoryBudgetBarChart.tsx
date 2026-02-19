@@ -59,11 +59,17 @@ const CategoryBudgetBarChart = ({
     : [];
   const refTopTotal =
     referenceCosTotal ?? refTop.reduce((s, c) => s + c.amount, 0);
+  const currentByCategoryId = new Map(
+    currentTop.map((c) => [c.categoryId, c.amount]),
+  );
+  const rowsToShow =
+    refTop.length > 0
+      ? refTop
+      : currentTop;
 
-  const chartData = currentTop.map((row, index) => {
-    const current = row.amount;
-    const refRow = refTop.find((r) => r.categoryId === row.categoryId);
-    const refCos = refRow?.amount ?? 0;
+  const chartData = rowsToShow.map((row, index) => {
+    const current = currentByCategoryId.get(row.categoryId) ?? (refTop.length > 0 ? 0 : row.amount);
+    const refCos = refTop.find((r) => r.categoryId === row.categoryId)?.amount ?? 0;
     const categoryBudget =
       refTopTotal > 0 && totalBudget > 0
         ? (totalBudget * refCos) / refTopTotal

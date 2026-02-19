@@ -15,22 +15,33 @@ import { ArrowRightIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import CategoryBudgetBarChart from '../chart/CategoryBudgetBarChart';
 
-/** Derive display categories from current month COS (fetched from QuickBooks). Percent = category amount / Budget total. */
+/** Derive display categories: merge current month COS with reference so categories with 0 current (e.g. COS5-Liquor) still show. Percent = category amount / Budget total. */
 function deriveDisplayCategories(
   currentCosByCategory:
     | { categoryId: string; name: string; amount: number }[]
     | undefined,
+  referenceCosByCategory:
+    | { categoryId: string; name: string; amount: number }[]
+    | undefined,
   totalBudget: number,
 ): BudgetCategoryRow[] {
-  if (!currentCosByCategory?.length) return [];
+  const currentMap = new Map(
+    (currentCosByCategory ?? []).map((c) => [c.categoryId, c]),
+  );
+  const refList = referenceCosByCategory ?? currentCosByCategory ?? [];
+  if (!refList.length) return [];
   const hasBudget = Number.isFinite(totalBudget) && totalBudget > 0;
-  return currentCosByCategory.map((c) => ({
-    id: c.categoryId,
-    categoryId: c.categoryId,
-    name: c.name,
-    amount: c.amount,
-    percent: hasBudget ? (c.amount / totalBudget) * 100 : null,
-  }));
+  return refList.map((ref) => {
+    const current = currentMap.get(ref.categoryId);
+    const amount = current?.amount ?? 0;
+    return {
+      id: ref.categoryId,
+      categoryId: ref.categoryId,
+      name: ref.name,
+      amount,
+      percent: hasBudget ? (amount / totalBudget) * 100 : null,
+    };
+  });
 }
 
 function BudgetCard({
@@ -69,8 +80,17 @@ function BudgetCard({
       ? budget.currentCosTotal
       : 0;
   const displayCategories = useMemo(
-    () => deriveDisplayCategories(budget.currentCosByCategory, totalAmount),
-    [budget.currentCosByCategory, totalAmount],
+    () =>
+      deriveDisplayCategories(
+        budget.currentCosByCategory,
+        budget.referenceCosByCategory,
+        totalAmount,
+      ),
+    [
+      budget.currentCosByCategory,
+      budget.referenceCosByCategory,
+      totalAmount,
+    ],
   );
 
   const displayRate =
