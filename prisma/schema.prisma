@@ -51,20 +51,33 @@ model VerificationToken {
   @@map("verification_tokens")
 }
 
+// ---------- App: Realm (QuickBooks company / token set; one-to-many Locations) ----------
+model Realm {
+  id               String    @id @default(cuid())
+  realmId          String    @unique @map("realm_id") // QuickBooks company id
+  name             String
+  accessToken      String?   @map("access_token") @db.Text
+  refreshToken     String?   @map("refresh_token") @db.Text
+  expiresAt        DateTime? @map("expires_at")
+  refreshExpiresAt DateTime? @map("refresh_expires_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  locations Location[]
+
+  @@map("realms")
+}
+
 // ---------- App: Locations (HQ, CC, PM, extensible) ----------
 model Location {
-  id               String    @id @default(cuid())
-  code             String    @unique // e.g. "HQ", "CC", "PM"
-  name             String
-  realmId          String    @map("realm_id")
-  classId          String?   @map("class_id")
-  accessToken      String    @map("access_token")
-  refreshToken     String    @map("refresh_token")
-  expiresAt        DateTime  @map("expires_at")
-  refreshExpiresAt DateTime  @map("refresh_expires_at")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  startDate        DateTime? @map("start_date")
+  id        String    @id @default(cuid())
+  code      String    @unique // e.g. "HQ", "CC", "PM"
+  name      String
+  realmId   String    @map("realm_id") // FK to Realm
+  classId   String?   @map("class_id")
+  createdAt DateTime  @default(now()) @map("created_at")
+  startDate DateTime? @map("start_date")
 
+  realm   Realm     @relation(fields: [realmId], references: [id], onDelete: Restrict)
   users   User[]
   budgets Budget[]
 

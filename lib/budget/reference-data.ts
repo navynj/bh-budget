@@ -23,12 +23,12 @@ export async function getRealmIdByLocation(locationId: string): Promise<string> 
   }
   const location = await prisma.location.findUnique({
     where: { id: locationId },
-    select: { realmId: true },
+    select: { realm: { select: { realmId: true } } },
   });
-  if (!location?.realmId) {
+  if (!location?.realm?.realmId) {
     throw new AppError('Location has no QuickBooks realm');
   }
-  return decryptRefreshToken(location.realmId);
+  return decryptRefreshToken(location.realm.realmId);
 }
 
 export async function getReferenceIncomeAndCos(

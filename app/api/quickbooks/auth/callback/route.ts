@@ -1,6 +1,6 @@
 /**
  * GET /api/quickbooks/auth/callback?code=...&realmId=...&state=locationId
- * Exchanges authorization code for tokens and updates Location. Redirects to /budget/location/[locationId].
+ * Exchanges authorization code for tokens, upserts Realm, and links Location to Realm.
  */
 import { AppError } from '@/lib/core/errors';
 import { prisma } from '@/lib/core/prisma';
@@ -11,8 +11,7 @@ const QB_CALLBACK_ERROR_CODE = 'QB_CALLBACK_ERROR';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const code = searchParams.get('code');
-  const realmId = searchParams.get('realmId');
+  const realmIdParam = searchParams.get('realmId');
   const state = searchParams.get('state');
   const error = searchParams.get('error');
 
@@ -28,7 +27,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  if (!code || !state) {
+  if (!searchParams.get('code') || !state) {
     return NextResponse.redirect(
       new URL('/?qb_error=missing_code_or_state', request.url),
     );
@@ -37,19 +36,45 @@ export async function GET(request: NextRequest) {
   const locationId = state;
 
   try {
+    const location = await prisma.location.findUnique({
+      where: { id: locationId },
+      select: { name: true },
+    });
+    if (!location) {
+      return NextResponse.redirect(new URL('/?qb_error=location_not_found', request.url));
+    }
+
     const oauth = getQuickBooksOAuthClient();
     const authResponse = await oauth.createToken(request.url);
     const token = authResponse.getJson();
+    const qbRealmId = token.realmId ?? realmIdParam ?? '';
     const expiresAt = new Date(Date.now() + (token.expires_in || 3600) * 1000);
+    const refreshExpiresAt =
+      token.x_refresh_token_expires_in != null
+        ? new Date(Date.now() + token.x_refresh_token_expires_in * 1000)
+        : null;
 
-    await prisma.location.update({
-      where: { id: locationId },
-      data: {
-        realmId: token.realmId ?? realmId ?? undefined,
+    const realm = await prisma.realm.upsert({
+      where: { realmId: qbRealmId },
+      create: {
+        realmId: qbRealmId,
+        name: location.name,
         accessToken: token.access_token,
         refreshToken: token.refresh_token,
         expiresAt,
+        refreshExpiresAt,
       },
+      update: {
+        accessToken: token.access_token,
+        refreshToken: token.refresh_token,
+        expiresAt,
+        refreshExpiresAt,
+      },
+    });
+
+    await prisma.location.update({
+      where: { id: locationId },
+      data: { realmId: realm.id },
     });
 
     return NextResponse.redirect(

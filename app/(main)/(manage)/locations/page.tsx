@@ -112,7 +112,17 @@ export default function LocationsPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold">Locations</h1>
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-semibold">Locations</h1>
+        <div className="flex gap-2">
+          {/* TODO: Add Manage Realms Dialog */}
+          <Button variant="outline" size="sm">
+            Manage Realms
+          </Button>
+          {/* TODO: Add Add Location Dialog */}
+          <Button size="sm">Add Location</Button>
+        </div>
+      </div>
       <DataTable columns={columns} data={locations} isLoading={loading} />
     </div>
   );

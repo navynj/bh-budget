@@ -82,12 +82,22 @@ export async function getValidAccessTokenForLocation(
   }
   const location = await prisma.location.findUnique({
     where: { id: locationId },
-    select: { accessToken: true, refreshToken: true, expiresAt: true },
+    select: {
+      realmId: true,
+      realm: {
+        select: {
+          accessToken: true,
+          refreshToken: true,
+          expiresAt: true,
+        },
+      },
+    },
   });
-  if (!location) {
+  if (!location?.realm) {
     throw new AppError('Location not found');
   }
-  if (!location.refreshToken) {
+  const realm = location.realm;
+  if (!realm.refreshToken) {
     throw new AppError(
       'Location has no QuickBooks refresh token; connect QuickBooks for this location.',
     );
@@ -95,16 +105,16 @@ export async function getValidAccessTokenForLocation(
   const nowSec = Math.floor(Date.now() / 1000);
   const expiryBufferSec = ACCESS_TOKEN_BUFFER_MINUTES * 60;
   const accessExpired =
-    location.expiresAt == null ||
-    location.expiresAt.getTime() <= nowSec + expiryBufferSec;
-  if (!accessExpired && location.accessToken) {
-    return location.accessToken;
+    realm.expiresAt == null ||
+    realm.expiresAt.getTime() <= nowSec + expiryBufferSec;
+  if (!accessExpired && realm.accessToken) {
+    return realm.accessToken;
   }
   try {
-    const data = await refreshQuickBooksTokens(location.refreshToken);
+    const data = await refreshQuickBooksTokens(realm.refreshToken);
     const expiresAt = new Date(Date.now() + (data.expires_in || 3600) * 1000);
-    await prisma.location.update({
-      where: { id: locationId },
+    await prisma.realm.update({
+      where: { id: location.realmId },
       data: {
         accessToken: data.access_token,
         refreshToken: data.refresh_token,
@@ -129,12 +139,16 @@ export async function withValidTokenForLocation<T>(
 ): Promise<T> {
   const location = await prisma.location.findUnique({
     where: { id: locationId },
-    select: { realmId: true, refreshToken: true, classId: true },
+    select: {
+      realmId: true,
+      classId: true,
+      realm: { select: { realmId: true, refreshToken: true } },
+    },
   });
-  if (!location?.realmId) {
+  if (!location?.realm) {
     throw new AppError('Location has no QuickBooks realm');
   }
-  const realmId = decryptRefreshToken(location.realmId);
+  const realmId = decryptRefreshToken(location.realm.realmId);
   const classId = location.classId ?? undefined;
 
   const tryRun = async (): Promise<T> => {
@@ -146,12 +160,13 @@ export async function withValidTokenForLocation<T>(
     return await tryRun();
   } catch (err) {
     const is401 = err instanceof Error && QB_401_PATTERN.test(err.message);
-    if (is401 && location.refreshToken) {
+    const refreshToken = location.realm?.refreshToken;
+    if (is401 && refreshToken) {
       try {
-        const data = await refreshQuickBooksTokens(location.refreshToken);
+        const data = await refreshQuickBooksTokens(refreshToken);
         const nowSec = Math.floor(Date.now() / 1000);
-        await prisma.location.update({
-          where: { id: locationId },
+        await prisma.realm.update({
+          where: { id: location.realmId },
           data: {
             accessToken: data.access_token,
             refreshToken: data.refresh_token,
