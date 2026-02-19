@@ -6,6 +6,7 @@ export {
   nextMonth,
   getCurrentYearMonth,
   isValidYearMonth,
+  isBeforeYearMonth,
 } from './date';
 export { formatCurrency } from './format';
 export {

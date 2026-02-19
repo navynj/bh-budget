@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { useNavigationProgress } from '@/components/providers/NavigationProgress';
 import {
+  isBeforeYearMonth,
   formatYearMonth,
   getCurrentYearMonth,
   nextMonth,
@@ -51,10 +52,13 @@ export default function MonthNav({
   const navigationProgress = useNavigationProgress();
 
   const go = (yearMonth: string) => {
-    navigationProgress?.startNavigation();
     const params = new URLSearchParams(searchParams.toString());
     params.set('yearMonth', yearMonth);
-    router.push(`${pathname}?${params.toString()}`);
+    const targetUrl = `${pathname}?${params.toString()}`;
+    const currentUrl = `${pathname}?${searchParams.toString()}`;
+    if (targetUrl === currentUrl) return;
+    navigationProgress?.startNavigation();
+    router.push(targetUrl);
   };
 
   const handleMonthSelect = (yearMonth: string) => {

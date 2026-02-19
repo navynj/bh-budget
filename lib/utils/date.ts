@@ -20,7 +20,7 @@ export function prevMonth(year: number, month: number): string {
 
 export function nextMonth(year: number, month: number): string {
   if (month === 11) return formatYearMonth(year + 1, 0);
-  return formatYearMonth(year, month);
+  return formatYearMonth(year, month + 1);
 }
 
 export function getCurrentYearMonth(): string {
@@ -28,6 +28,14 @@ export function getCurrentYearMonth(): string {
   const y = now.getFullYear();
   const m = String(now.getMonth() + 1).padStart(2, '0');
   return `${y}-${m}`;
+}
+
+/** Compare two YYYY-MM strings by date. Returns boolean */
+export function isBeforeYearMonth(a: string, b: string): boolean {
+  const pa = parseYearMonth(a);
+  const pb = parseYearMonth(b);
+  if (pa.year !== pb.year) return pa.year - pb.year < 0;
+  return pa.month - pb.month < 0;
 }
 
 export function isValidYearMonth(yearMonth: string): boolean {

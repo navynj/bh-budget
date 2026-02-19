@@ -46,7 +46,7 @@ export function getQbClientCredentials(): {
 export function getQuickBooksRedirectUri(): string {
   return (
     process.env.QUICKBOOKS_REDIRECT_URI ||
-    `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/api/quickbooks/auth/callback`
+    `${process.env.NEXT_PUBLIC_APP_URL}/api/quickbooks/auth/callback`
   );
 }
 
