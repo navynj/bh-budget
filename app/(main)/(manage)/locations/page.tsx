@@ -4,16 +4,32 @@ import { DataTable } from '@/components/ui/data-table';
 import { Spinner } from '@/components/ui/spinner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { type ColumnDef, type Row } from '@tanstack/react-table';
 import { Check, Pencil, X } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { toast } from 'sonner';
+import { ManageRealmsDialog } from '@/components/features/locations/ManageRealmsDialog';
+import { AddLocationDialog } from '@/components/features/locations/AddLocationDialog';
+import { ClassName } from '@/types/className';
+import { cn } from '@/lib/utils';
+
+type RealmOption = { id: string; name: string };
 
 type LocationRow = {
   id: string;
   code: string;
   name: string;
   classId: string | null;
+  realmId: string;
+  realmName: string | null;
 };
 
 async function patchLocation(id: string, body: Record<string, unknown>) {
@@ -29,7 +45,9 @@ async function patchLocation(id: string, body: Record<string, unknown>) {
 }
 
 export default function LocationsPage() {
+  const pathname = usePathname();
   const [locations, setLocations] = useState<LocationRow[]>([]);
+  const [realms, setRealms] = useState<RealmOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   const fetchLocations = useCallback(async () => {
@@ -39,11 +57,18 @@ export default function LocationsPage() {
     setLocations(data);
   }, []);
 
+  const fetchRealms = useCallback(async () => {
+    const res = await fetch('/api/realms');
+    if (!res.ok) return;
+    const data = await res.json();
+    setRealms(Array.isArray(data) ? data : []);
+  }, []);
+
   useEffect(() => {
-    fetchLocations()
+    Promise.all([fetchLocations(), fetchRealms()])
       .catch(() => toast.error('Failed to load locations'))
       .finally(() => setLoading(false));
-  }, [fetchLocations]);
+  }, [fetchLocations, fetchRealms]);
 
   const updateLocation = useCallback(
     async (row: LocationRow, field: string, value: unknown) => {
@@ -53,6 +78,9 @@ export default function LocationsPage() {
       const optimisticLocation: LocationRow = {
         ...previous,
         [field]: value as string | null,
+        ...(field === 'realmId' && typeof value === 'string'
+          ? { realmName: realms.find((r) => r.id === value)?.name ?? null }
+          : {}),
       };
 
       setLocations((prev) =>
@@ -69,7 +97,7 @@ export default function LocationsPage() {
         toast.error(e instanceof Error ? e.message : 'Update failed');
       }
     },
-    [locations],
+    [locations, realms],
   );
 
   const columns: ColumnDef<LocationRow>[] = [
@@ -91,7 +119,19 @@ export default function LocationsPage() {
         <EditableCell
           row={row}
           field="name"
+          className="max-w-full"
           onSave={(v) => updateLocation(row.original, 'name', v)}
+        />
+      ),
+    },
+    {
+      accessorKey: 'realmId',
+      header: 'Realm',
+      cell: ({ row }: { row: Row<LocationRow> }) => (
+        <RealmSelectCell
+          row={row}
+          realms={realms}
+          onSave={(realmId) => updateLocation(row.original, 'realmId', realmId)}
         />
       ),
     },
@@ -114,13 +154,13 @@ export default function LocationsPage() {
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Locations</h1>
-        <div className="flex gap-2">
-          {/* TODO: Add Manage Realms Dialog */}
-          <Button variant="outline" size="sm">
-            Manage Realms
-          </Button>
-          {/* TODO: Add Add Location Dialog */}
-          <Button size="sm">Add Location</Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <ManageRealmsDialog
+            onOpenChange={(open) => {
+              if (!open) fetchRealms();
+            }}
+          />
+          <AddLocationDialog realms={realms} onSuccess={fetchLocations} />
         </div>
       </div>
       <DataTable columns={columns} data={locations} isLoading={loading} />
@@ -128,15 +168,61 @@ export default function LocationsPage() {
   );
 }
 
+function RealmSelectCell({
+  row,
+  realms,
+  onSave,
+}: {
+  row: Row<LocationRow>;
+  realms: RealmOption[];
+  onSave: (realmId: string) => void;
+}) {
+  const realmId = row.original.realmId;
+  const realmName = row.original.realmName;
+
+  if (realms.length === 0) {
+    return (
+      <span className="text-muted-foreground text-sm">
+        {realmName ?? (realmId ? `Realm` : '—')}
+      </span>
+    );
+  }
+
+  return (
+    <Select
+      value={realmId}
+      onValueChange={(v) => {
+        if (v && v !== realmId) onSave(v);
+      }}
+    >
+      <SelectTrigger
+        size="sm"
+        className="max-w-[200px] min-w-0"
+        aria-label="Select realm"
+      >
+        <SelectValue placeholder="Select realm" />
+      </SelectTrigger>
+      <SelectContent>
+        {realms.map((r) => (
+          <SelectItem key={r.id} value={r.id}>
+            {r.name}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+}
+
 function EditableCell({
   row,
   field,
   onSave,
+  className,
 }: {
   row: Row<LocationRow>;
   field: 'code' | 'name' | 'classId';
   onSave: (value: string) => void;
-}) {
+} & ClassName) {
   const current = row.original[field] ?? '';
   const [isEditing, setIsEditing] = useState(false);
   const [value, setValue] = useState(current);
@@ -163,7 +249,7 @@ function EditableCell({
 
   if (!isEditing) {
     return (
-      <div className="flex max-w-[220px] items-center gap-1">
+      <div className={cn('flex max-w-[220px] items-center gap-1', className)}>
         <span className="min-w-0 truncate">{displayValue}</span>
         <Button
           type="button"

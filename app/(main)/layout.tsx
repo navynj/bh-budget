@@ -1,4 +1,5 @@
 import OnboardingList from '@/components/features/onboard/OnboardingList';
+import { RefreshTokenExpiredAlert } from '@/components/features/locations/RefreshTokenExpiredAlert';
 import Header from '@/components/layout/Header';
 import { auth, getOfficeOrAdmin, requireActiveSession } from '@/lib/auth';
 import { getPendingApprovals } from '@/lib/users';
@@ -30,6 +31,7 @@ const layout = async ({ children }: { children: ReactNode }) => {
       <main className="flex-1 min-w-0">
         <Header isOfficeOrAdmin={isOfficeOrAdmin} />
         <div className="space-y-6">
+          <RefreshTokenExpiredAlert isOfficeOrAdmin={isOfficeOrAdmin ?? false} />
           <OnboardingList canApprove={canApprove} pending={pending} />
           {children}
         </div>

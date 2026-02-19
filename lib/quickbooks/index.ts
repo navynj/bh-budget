@@ -26,6 +26,10 @@ export type {
   QuickBooksProfitAndLossRaw,
   PnlReportData,
 } from './parser';
-export { fetchProfitAndLossReportFromQb } from './report-fetcher';
+export {
+  fetchProfitAndLossReportFromQb,
+  getQuickBooksCompanyName,
+} from './fetcher';
+export type { QuickBooksCompanyInfoResponse } from './fetcher';
 export { fetchPnlReport } from './client';
 export type { PnlApiResponse } from './client';

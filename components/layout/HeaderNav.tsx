@@ -40,7 +40,7 @@ const NavItem = ({
   target,
 }: PropsWithChildren<ClassName & { href: string; target?: string }>) => {
   const pathname = usePathname();
-  const isActive = pathname === href;
+  const isActive = pathname.includes(href);
   return (
     <Button
       variant="ghost"

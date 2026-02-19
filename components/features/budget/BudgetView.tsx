@@ -146,7 +146,7 @@ export function BudgetView({
           <div>
             <Button asChild variant="destructive" size="sm">
               <a
-                href={`/api/quickbooks/connect?locationId=${encodeURIComponent(reconnectLocationId)}`}
+                href={`/api/quickbooks/auth?locationId=${encodeURIComponent(reconnectLocationId)}`}
               >
                 Reconnect QuickBooks
               </a>

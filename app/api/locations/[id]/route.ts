@@ -32,10 +32,12 @@ export async function PATCH(
     code?: string;
     name?: string;
     classId?: string | null;
+    realmId?: string;
   } = {};
   if (body.code !== undefined) updateData.code = body.code;
   if (body.name !== undefined) updateData.name = body.name;
   if (body.classId !== undefined) updateData.classId = body.classId ?? null;
+  if (body.realmId !== undefined) updateData.realmId = body.realmId;
 
   await prisma.location.update({
     where: { id },

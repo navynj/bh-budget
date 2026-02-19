@@ -112,11 +112,20 @@ export const userPatchSchema = z.object({
   locationId: z.string().nullable().optional(),
 });
 
+/** POST /api/locations */
+export const locationPostSchema = z.object({
+  code: z.string().min(1, 'Code is required').transform((s) => s.trim()),
+  name: z.string().min(1, 'Name is required').transform((s) => s.trim()),
+  realmId: z.string().min(1, 'Realm is required'),
+  classId: z.string().nullable().optional(),
+});
+
 /** PATCH /api/locations/[id] */
 export const locationPatchSchema = z.object({
   code: z.string().min(1, 'Code is required').transform((s) => s.trim()).optional(),
   name: z.string().min(1, 'Name is required').transform((s) => s.trim()).optional(),
   classId: z.string().nullable().optional(),
+  realmId: z.string().min(1, 'Realm is required').optional(),
 });
 
 export type OnboardingPostBody = z.infer<typeof onboardingPostSchema>;
@@ -127,6 +136,7 @@ export type BudgetPatchBody = z.infer<typeof budgetPatchSchema>;
 export type BudgetBulkPatchBody = z.infer<typeof budgetBulkPatchSchema>;
 export type BudgetSettingsPatchBody = z.infer<typeof budgetSettingsPatchSchema>;
 export type UserPatchBody = z.infer<typeof userPatchSchema>;
+export type LocationPostBody = z.infer<typeof locationPostSchema>;
 export type LocationPatchBody = z.infer<typeof locationPatchSchema>;
 
 /**
