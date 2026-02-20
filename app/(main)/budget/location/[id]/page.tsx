@@ -8,7 +8,7 @@ import {
   mapBudgetToDataType,
 } from '@/lib/budget';
 import type { QuickBooksApiContext } from '@/lib/budget';
-import { auth } from '@/lib/auth';
+import { auth, getOfficeOrAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/core/prisma';
 import { getCurrentYearMonth, isValidYearMonth } from '@/lib/utils';
 import { headers } from 'next/headers';
@@ -23,6 +23,12 @@ const LocationPage = async ({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ yearMonth?: string }>;
 }) => {
+  // ===============================
+  // Session
+  // ===============================
+  const session = await auth();
+  const isOfficeOrAdmin = getOfficeOrAdmin(session?.user?.role);
+
   // ===============================
   // Location
   // ===============================
@@ -47,7 +53,6 @@ const LocationPage = async ({
   // ===============================
   // Budget
   // ===============================
-  const session = await auth();
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL
     ? process.env.NEXT_PUBLIC_APP_URL
     : 'http://localhost:3000';
@@ -105,7 +110,7 @@ const LocationPage = async ({
 
   return (
     <>
-      <BackButton />
+      {isOfficeOrAdmin && <BackButton />}
       <div className="flex flex-col md:flex-row gap-4">
         <div className="w-full md:w-2/3">
           <TotalBudgetChart
