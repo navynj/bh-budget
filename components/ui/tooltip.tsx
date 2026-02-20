@@ -5,6 +5,10 @@ import { Tooltip as TooltipPrimitive } from 'radix-ui';
 
 import { cn } from '@/lib/utils';
 
+const TooltipTouchContext = React.createContext<
+  ((open: boolean) => void) | null
+>(null);
+
 function TooltipProvider({
   delayDuration = 0,
   ...props
@@ -19,15 +23,58 @@ function TooltipProvider({
 }
 
 function Tooltip({
+  open: openProp,
+  onOpenChange: onOpenChangeProp,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Root>) {
-  return <TooltipPrimitive.Root data-slot="tooltip" {...props} />;
+  const [open, setOpen] = React.useState(false);
+  const isControlled = openProp !== undefined;
+  const isOpen = isControlled ? openProp : open;
+  const setOpenState = isControlled ? onOpenChangeProp ?? (() => {}) : setOpen;
+
+  const handleOpenChange = React.useCallback(
+    (value: boolean) => {
+      if (!isControlled) setOpen(value);
+      onOpenChangeProp?.(value);
+    },
+    [isControlled, onOpenChangeProp],
+  );
+
+  return (
+    <TooltipTouchContext.Provider value={setOpenState}>
+      <TooltipPrimitive.Root
+        data-slot="tooltip"
+        open={isControlled ? openProp : isOpen}
+        onOpenChange={handleOpenChange}
+        {...props}
+      />
+    </TooltipTouchContext.Provider>
+  );
 }
 
 function TooltipTrigger({
+  onPointerDown,
   ...props
 }: React.ComponentProps<typeof TooltipPrimitive.Trigger>) {
-  return <TooltipPrimitive.Trigger data-slot="tooltip-trigger" {...props} />;
+  const setOpen = React.useContext(TooltipTouchContext);
+
+  const handlePointerDown = React.useCallback(
+    (e: React.PointerEvent<HTMLElement>) => {
+      if (e.pointerType === 'touch' && setOpen) {
+        setOpen(true);
+      }
+      onPointerDown?.(e as React.PointerEvent<HTMLButtonElement>);
+    },
+    [setOpen, onPointerDown],
+  );
+
+  return (
+    <TooltipPrimitive.Trigger
+      data-slot="tooltip-trigger"
+      onPointerDown={handlePointerDown}
+      {...props}
+    />
+  );
 }
 
 function TooltipContent({
